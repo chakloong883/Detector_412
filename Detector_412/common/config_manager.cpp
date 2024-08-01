@@ -19,7 +19,6 @@ ConfigManager::ConfigManager(const std::string& configPath) {
 
 std::shared_ptr<ConfigManager> ConfigManager::GetInstance(const std::string& configPath) {
     std::lock_guard<std::mutex> lock(mutex_); // 线程安全
-
     auto it = instances_.find(configPath);
     if (it == instances_.end()) {
         std::shared_ptr<ConfigManager> instance(new ConfigManager(configPath));
