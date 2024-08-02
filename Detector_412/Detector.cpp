@@ -5,6 +5,7 @@
 #include <functional>
 #include <future>
 #include "DetectorThread/detector_thread.h"
+#include "common/config_manager.h"
 
 
 //Detector* Detector::instance{ nullptr };
@@ -52,6 +53,17 @@ namespace uuid {
 struct Detector::Impl {
 public:
     Impl(std::string&configPath) {
+        configManager_ = ConfigManager::GetInstance(configPath);
+        auto node = configManager_->getConfig();
+        if (node["object_detecion"]) {
+            if (node["object_detecion"]["imagetype"]) {
+                imageType_ = node["object_detecion"]["imagetype"].as<std::string>();
+            }
+            if (node["object_detecion"]["imagesize"]) {
+                imageSize_ = node["object_detecion"]["imagesize"].as<int>();
+            }
+        }
+
         detectorThread_ = std::make_shared<DetectorThread>();
         if (!detectorThread_->Init(configPath)) {
             throw "detector Thread init error!";
@@ -63,20 +75,45 @@ public:
     }
 
     bool process(std::string& uuid, ImageFrame& inputframe, ResultFrame& resultframe) {
+        if (imageType_ == "rgb") {
+            if (inputframe.channelNum != 3) {
+                std::cout << "wrong channel num!, the imageType is " << imageType_ << ", the channel num is:" << inputframe.channelNum << std::endl;
+                return false;
+            }
+        }
+        else if (imageType_ == "gray") {
+            if (inputframe.channelNum != 1) {
+                std::cout << "wrong channel num!, the imageType is " << imageType_ << ", the channel num is:" << inputframe.channelNum << std::endl;
+                return false;
+            }
+        }
+        if (inputframe.imageHeight != imageSize_ || inputframe.imageWidth != imageSize_) {
+            std::cout << "wrong image size, the image Height is " << inputframe.imageHeight;
+            std::cout << ", the imageWidth is " << inputframe.imageWidth;
+            std::cout << "it should be: " << imageSize_ << "." << std::endl;
+            return false;
+        }
         if (!detectorThread_->push(inputframe)) {
+            std::cout << "the input queue full!" << std::endl;
             return false;
         }
         if (!detectorThread_->get(resultframe, uuid)) {
+            std::cout << "can't get the result frame!" << std::endl;
             return false;
         }
+        std::cout << "get result frame success!" << std::endl;
         //std::unique_lock<std::mutex> lock(processMutex_);
         //std::cout << "processNum:" << processNum << std::endl;
         //processNum += 1;
         return true;
     }
 private:
+    std::shared_ptr<ConfigManager> configManager_;
     std::shared_ptr<DetectorThread> detectorThread_;
     std::mutex processMutex_;
+    std::string imageType_ = "rgb";
+    int imageSize_ = 1280;
+
 };
 
 
