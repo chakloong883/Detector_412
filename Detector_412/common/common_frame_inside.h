@@ -1,6 +1,11 @@
 #pragma once
 #include "common_frame.h"
 
+struct Point {
+	float x;
+	float y;
+};
+
 struct ImagePos {
 	int rowBias;
 	int colBias;

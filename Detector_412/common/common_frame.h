@@ -34,4 +34,6 @@ struct Defect {
 struct ResultFrame {
     std::shared_ptr<std::vector<Defect>> defects;
     std::string uuid;
+    bool NG;
+    std::string NGStateMent;
 };

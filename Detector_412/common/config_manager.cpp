@@ -1,4 +1,4 @@
-#include "config_manager.h"
+﻿#include "config_manager.h"
 #include <string>
 
 //ConfigManager* ConfigManager::instance{nullptr};

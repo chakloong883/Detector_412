@@ -1,4 +1,4 @@
-#include "image_process.h"
+ï»¿#include "image_process.h"
 
 void ImageProcess::cropImage(cv::Mat& image, std::vector<ImagePos>& imagePos, int& cropHeight, int& cropWidth, float& overLap) {
 	int rowBias = std::round(cropHeight - (cropHeight * overLap));
@@ -24,7 +24,7 @@ void ImageProcess::cropImage(cv::Mat& image, std::vector<ImagePos>& imagePos, in
             isLastCol = nextColBiasAdd == 0;
             cv::Mat cropped = cv::Mat::zeros(cropHeight, cropWidth, image.type());
 
-            // Define the region of interest in the original image, ±ÜÃâ²Ã¼ô³ö½ç
+            // Define the region of interest in the original image, é¿å…è£å‰ªå‡ºç•Œ
             int width = std::min(cropWidth, cols - x);
             int height = std::min(cropHeight, rows - y);
             cv::Rect roi(x, y, width, height);

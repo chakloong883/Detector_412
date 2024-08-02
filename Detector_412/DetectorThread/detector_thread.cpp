@@ -1,7 +1,9 @@
-#include <chrono>
+﻿#include <chrono>
 #include<cuda_runtime_api.h>
+#include <sstream>
+#include <regex>
+#include <stdexcept>
 #include "detector_thread.h"
-
 
 DetectorThread::DetectorThread() {
     imageQueue_ = std::make_shared<ImageFrameQueue>(100);
@@ -129,6 +131,198 @@ void getCVBatchImages(unsigned char*& batchImagesHost, std::vector<cv::Mat>& bat
 
 #endif // _DEBUG
 
+float calculateDistance(const Point& p1, const Point& p2) {
+    float xDiff = p2.x - p1.x;
+    float yDiff = p2.y - p1.y;
+    return sqrt(xDiff * xDiff + yDiff * yDiff);
+}
+
+void shrinkFilter(Defect& defect, Point& centerOfCircle, int& radius, float& shrink, float& shrinkRatio,bool& keep) {
+    Point boxCenter;
+    boxCenter.x = (defect.box.left + defect.box.right) / 2;
+    boxCenter.y = (defect.box.top + defect.box.bottom) / 2;
+    /*auto height = defect.box.bottom - defect.box.top;
+    auto width = defect.box.right - defect.box.left;
+    auto length = height > width ? height : width;*/
+    float distance = calculateDistance(centerOfCircle, boxCenter);
+    if (distance > radius - shrinkRatio * shrink) {
+        keep = false;
+    }
+    else {
+        keep = true;
+    }
+}
+
+bool compare(const std::string& condition, float a, float shrinkRatio=1.0) {
+    std::regex pattern(R"((>=|<=|>|<|=|!=)(-?\d+))");
+    std::smatch matches;
+
+    if (std::regex_match(condition, matches, pattern)) {
+        if (matches.size() != 3) {
+            throw std::invalid_argument("Invalid condition format");
+        }
+
+        std::string op = matches[1];
+        float value = shrinkRatio *std::stof(matches[2]);
+
+        if (op == ">=") {
+            return a >= value;
+        }
+        else if (op == "<=") {
+            return a <= value;
+        }
+        else if (op == ">") {
+            return a > value;
+        }
+        else if (op == "<") {
+            return a < value;
+        }
+        else if (op == "=") {
+            return a == value;
+        }
+        else if (op == "!=") {
+            return a != value;
+        }
+        else {
+            throw std::invalid_argument("Unknown operator");
+        }
+    }
+    else {
+        throw std::invalid_argument("Invalid condition format");
+    }
+}
+
+void DetectorThread::regularzation(ResultFrame &frame, cv::Mat& image) {
+    auto defect = frame.defects;
+    std::stringstream NGStateMent;
+    for (auto it = defect->begin(); it != defect->end();) {
+        auto defectName = it->defectName;
+        if (!configManager_) {
+            std::cout << "configManager未初始化！" << std::endl;
+        }
+        // TODO ：config改为私有成员变量
+        auto config = configManager_->getConfig();
+        auto defectFilter = config["defect_filter"];
+        if (!defectFilter[defectName]) {
+            std::cout << "规则未找到该缺陷表述：" << defectName << std::endl;
+            ++it;
+            continue;
+        }
+        else {
+            float shrink = 0.0;
+            float shrinkRatio = 0.4;
+            if (defectFilter[defectName]["shrink"]) {
+                shrink = defectFilter[defectName]["shrink"].as<float>();
+            }
+            if (config["shrinkratio"]) {
+                shrinkRatio = config["shrinkratio"].as<float>();
+            }
+
+            // TODO 考虑用frame里拿坐标圆心，半径，小圆半径
+            Point centerOfCircle;
+            centerOfCircle.x = 640.0;
+            centerOfCircle.y = 632.0;
+            int radius = 413;
+            int radiusSmall = 300;
+
+            if (config["centerpoint"]) {
+                if (config["centerpoint"]["x"]) {
+                    centerOfCircle.x = config["centerpoint"]["x"].as<float>();
+                }
+                if (config["centerpoint"]["y"]) {
+                    centerOfCircle.y = config["centerpoint"]["y"].as<float>();
+                }
+            }
+
+            if (config["radius"]) {
+                radius = config["radius"].as<int>();
+            }
+            if (config["radiussmall"]) {
+                radiusSmall = config["radiussmall"].as<int>();
+            }
+
+            bool keep = true;
+            shrinkFilter(*it, centerOfCircle, radius, shrink, shrinkRatio, keep);
+            if (!keep) {
+                it = defect->erase(it);
+                continue;
+            }
+            else {
+                if (defectFilter[defectName]["judge"] && defectFilter[defectName]["judge"].IsSequence()) {
+                    for (const YAML::Node& item : defectFilter[defectName]["judge"]) {
+                        float objValue = 0.0;
+                        if (!item["obj"]) {
+                            std::cout << "配置文件里有judge，找不到obj" << std::endl;
+                            continue;
+                        }
+                        else {
+                            auto objFocus = item["obj"].as<std::string>();
+                            if (objFocus == "thickness") {
+                                objValue = it->box.right - it->box.left;
+                            }
+                            else if (objFocus == "length" || objFocus == "width") {
+                                auto height = it->box.bottom - it->box.top;
+                                auto width = it->box.right - it->box.left;
+                                if (objFocus == "length") {
+                                    objValue = height > width ? height : width;
+                                }
+                                else {
+                                    objValue = height > width ? width : height;
+                                }
+                            }
+
+                            else if (objFocus == "area_in_circle" || objFocus == "area_out_circle" || objFocus == "area") {
+                                Point boxCenter;
+                                boxCenter.x = (it->box.left + it->box.right) / 2;
+                                boxCenter.y = (it->box.top + it->box.bottom) / 2;
+                                auto area = (it->box.right - it->box.left) * (it->box.bottom - it->box.top);
+                                float distance = calculateDistance(centerOfCircle, boxCenter);
+                                //TODO 补充小圆半径
+                                if (objFocus == "area_in_circle") {
+                                    if (distance < radiusSmall) {
+                                        objValue = area;
+                                    }
+                                    else {
+                                        continue;
+                                    }
+                                }
+                                else if (objFocus == "area_out_circle") {
+                                    if (distance >= radiusSmall && distance < radius) {
+                                        objValue = area;
+                                    }
+                                    else {
+                                        continue;
+                                    }
+                                }
+                                else {
+                                    objValue = area;
+                                }
+                            }
+
+                        }
+                        if (!item["NG"]) {
+                            std::cout << "找不到NG标准" << std::endl;
+                            continue;
+                        }
+                        else {
+                            auto NGStandard = item["NG"].as<std::string>();
+                            if (compare(NGStandard, objValue, shrinkRatio)) {
+                                frame.NG = true;
+                                NGStateMent << "The " << item["obj"].as<std::string>() << " of " << defectName << " " << NGStandard << ".";
+                                NGStateMent << "The " << item["obj"].as<std::string>() << " value is:" << objValue << std::endl;
+
+                            }
+                        }
+                    }
+                }
+                ++it;
+            }
+        }
+
+    }
+    frame.NGStateMent = NGStateMent.str();
+
+}
 
 
 
@@ -141,7 +335,6 @@ void DetectorThread::detectThread() {
         }
         auto batchuuid = (*batchImage)->batchuuid;
         auto buffer = (*batchImage)->buffer;
-        // TODO ���Ƿ�װ���̳߳�
         auto imagesPos = (*batchImage)->imagesPos;
         yolo_->setInputData(buffer);
         utils::DeviceTimer d_t1; yolo_->preprocess();  float t1 = d_t1.getUsedTime();
@@ -201,9 +394,15 @@ void DetectorThread::postprocessThread() {
             for (std::size_t i = 0; i < defects.size(); i++) {
                 defects[i].box.addBias(rowBias, colBias);
             }
+            
             if (isLast) {
+                ResultFrame resultFrame({ std::make_shared<std::vector<Defect>>(defects), uuid, false, ""});
+                cv::Mat image;
+                regularzation(resultFrame, image);
+
                 std::lock_guard<std::mutex> lock(resultFrameMapMutex_);
-                resultFrameMap_[uuid] = ResultFrame({ std::make_shared<std::vector<Defect>>(defects), uuid} );
+                //resultFrameMap_[uuid] = ResultFrame({ std::make_shared<std::vector<Defect>>(defects), uuid} );
+                resultFrameMap_[uuid] = resultFrame;
                 resultFrameMapCV_.notify_all();
             }
         }
@@ -212,8 +411,8 @@ void DetectorThread::postprocessThread() {
 }
 
 bool DetectorThread::createDetector(std::string& configPath) {
-    auto configManager = ConfigManager::GetInstance(configPath);
-    auto node = configManager->getConfig();
+    configManager_ = ConfigManager::GetInstance(configPath);
+    auto node = configManager_->getConfig();
     batchSize_ = node["object_detecion"]["batchsize"].as<int>();
     auto objectDetectorUse = node["object_detecion"]["objectdetector"].as<std::string>();
     std::vector<std::string> modelChoice = { "yolov5", "yolov6", "yolov7", "yolov8" };

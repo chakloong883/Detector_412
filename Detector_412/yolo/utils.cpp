@@ -1,4 +1,4 @@
-#include "utils.h"
+﻿#include "utils.h"
 
 void utils::saveBinaryFile(float* vec, size_t len, const std::string& file)
 {

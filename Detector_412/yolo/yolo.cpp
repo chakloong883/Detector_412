@@ -1,4 +1,4 @@
-#include"yolo.h"
+﻿#include"yolo.h"
 #include "decode_yolov8.h"
 
 yolo::YOLO::YOLO(std::string& configPath)

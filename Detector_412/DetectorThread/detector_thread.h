@@ -21,6 +21,7 @@ public:
 private:
 	bool createDetector(std::string& detectorUse);
 	void copyImageToCudaThread();
+	void regularzation(ResultFrame& frame, cv::Mat& image);
 	void cropImageThread();
 	void detectThread();
 	void postprocessThread();
@@ -45,6 +46,7 @@ private:
 	std::map<std::string, ResultFrame> resultFrameMap_;
 	std::mutex resultFrameMapMutex_;
 	std::condition_variable resultFrameMapCV_;
+	std::shared_ptr<ConfigManager> configManager_;
 
 
 

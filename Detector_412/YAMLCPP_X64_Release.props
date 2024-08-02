@@ -3,8 +3,8 @@
   <ImportGroup Label="PropertySheets" />
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup>
-    <IncludePath>D:\3rdParty\yamlcpp\include;$(IncludePath)</IncludePath>
-    <LibraryPath>D:\3rdParty\yamlcpp\Release;$(LibraryPath)</LibraryPath>
+    <IncludePath>D:\zzl\进厂测试\yamlcpp\include;$(IncludePath)</IncludePath>
+    <LibraryPath>D:\zzl\进厂测试\yamlcpp\Release;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup>
     <Link>
