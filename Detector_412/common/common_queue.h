@@ -22,4 +22,3 @@ typedef std::shared_ptr<ImageFrameQueue> ImageFrameQueuePtr;
 typedef std::shared_ptr<ResultFrameQueue> ResultFrameQueuePtr;
 typedef std::shared_ptr<BatchImageFrameQueue> BatchImageFrameQueuePtr;
 typedef std::shared_ptr<BatchResultFrameQueue> BatchResultFrameQueuePtr;
-

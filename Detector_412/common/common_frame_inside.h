@@ -15,6 +15,7 @@ struct ImagePos {
 
 struct BatchImageFrame {
 	std::shared_ptr<void> buffer;
+	std::shared_ptr<void> bufferCpu;
 	std::shared_ptr<std::vector<ImagePos>> imagesPos;
 	std::vector<std::string> batchuuid;
 	int imageWidth;
@@ -23,8 +24,14 @@ struct BatchImageFrame {
 	int batchSize;
 };
 
+struct Circle {
+	Point circlePoint;
+	float radius;
+};
+
 struct BatchResultFrame {
 	std::shared_ptr<std::vector<std::vector<Defect>>> batchDefects;
 	std::shared_ptr<std::vector<ImagePos>> imagesPos;
+	std::shared_ptr<std::vector<Circle>> circles;
 	std::vector<std::string> batchuuid;
 };

@@ -21,7 +21,11 @@ public:
 private:
 	bool createDetector(std::string& detectorUse);
 	void copyImageToCudaThread();
-	void regularzation(ResultFrame& frame, cv::Mat& image);
+	void detectMaociBatchImages(std::vector<cv::Mat>& image, BatchResultFramePtr outputframe);
+	void registerTraditionFun(std::function<void(std::vector<cv::Mat>&, BatchResultFramePtr)> cb);
+	std::function<void(std::vector<cv::Mat>&, BatchResultFramePtr)> traditionalDetectBatchImagesFun_;
+
+	void regularzation(ResultFrame& frame, cv::Mat& image, Circle& circle);
 	void cropImageThread();
 	void detectThread();
 	void postprocessThread();
@@ -47,8 +51,5 @@ private:
 	std::mutex resultFrameMapMutex_;
 	std::condition_variable resultFrameMapCV_;
 	std::shared_ptr<ConfigManager> configManager_;
-
-
-
 
 };
