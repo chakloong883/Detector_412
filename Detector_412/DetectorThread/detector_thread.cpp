@@ -381,7 +381,11 @@ void DetectorThread::detectMaociBatchImages(std::vector<cv::Mat>& images, BatchR
         // 二值化
         cv::threshold(image, imageThresh, 188, 255, cv::THRESH_BINARY_INV);
         cv::Mat labels, stats, centroids;
-        //https://blog.csdn.net/qq_43199575/article/details/133810085
+        // https://blog.csdn.net/qq_43199575/article/details/133810085
+        // cuda加速：https://cloud.tencent.com/developer/article/1525799
+        //cuda加速 https://www.bilibili.com/video/av71643385/?vd_source=8bc4fc0368edb389591ed834a5d0e2eb
+        // cuda加速用例：https://github.com/opencv/opencv/tree/4.x/samples/gpu/
+        // cudaapi: https://docs.opencv.org/4.10.0/d1/d1a/namespacecv_1_1cuda.html
         int numComponents = cv::connectedComponentsWithStats(imageThresh, labels, stats, centroids);
         cv::Mat Mask;
         // 筛面积
