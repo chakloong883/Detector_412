@@ -465,7 +465,7 @@ void DetectorThread::detectMaociBatchImages(std::vector<cv::Mat>& images, BatchR
                         angle1 = 90;
                     }
                     double angleDifference = calculateAngleDifference(angle, angle1);
-                    if (angleDifference > 70) {
+                    if (angleDifference > 70 || area > 2000 ) {
                         outputframe->batchDefects->at(i).push_back(Defect("yijiao", box));
                     }
                     else {

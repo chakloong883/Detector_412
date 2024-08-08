@@ -21,6 +21,8 @@ namespace yolo
         virtual void registerPreprocessFun(std::function<void()> cb);
         virtual void gray_preprocess();
         virtual void rgb_preprocess();
+        virtual void gray_resize_preprocess();
+        virtual void rgb_resize_preprocess();
         virtual bool infer();
         virtual void postprocess(const size_t& batchSize);
         virtual void reset();

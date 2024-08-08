@@ -6,15 +6,7 @@ yolo::YOLO::YOLO(std::string& configPath)
     auto configManager = ConfigManager::GetInstance(configPath);
     auto node = configManager->getConfig();
     auto imageType = node["object_detecion"]["imagetype"].as<std::string>();
-    if (imageType == "gray") {
-        this->registerPreprocessFun(std::bind(&YOLO::gray_preprocess, this));
-    }
-    else if (imageType == "rgb") {
-        this->registerPreprocessFun(std::bind(&YOLO::rgb_preprocess, this));
-    }
-    else {
-        throw("error image type: %s", imageType.c_str());
-    }
+
 
     m_param.num_class = node["object_detecion"]["classnum"].as<int>();
     m_param.iou_thresh = node["object_detecion"]["nmsthres"].as<float>();
@@ -25,6 +17,29 @@ yolo::YOLO::YOLO(std::string& configPath)
     m_param.src_w = node["object_detecion"]["imagesize"].as<int>();
     m_param.dst_h = node["object_detecion"]["modelsize"].as<int>();
     m_param.dst_w = node["object_detecion"]["modelsize"].as<int>();
+
+
+    if (imageType == "gray") {
+        if ((m_param.src_h == m_param.dst_h) && (m_param.src_w == m_param.dst_w)) {
+            this->registerPreprocessFun(std::bind(&YOLO::gray_preprocess, this));
+        }
+        else {
+            this->registerPreprocessFun(std::bind(&YOLO::gray_resize_preprocess, this));
+        }
+    }
+    else if (imageType == "rgb") {
+        if ((m_param.src_h == m_param.dst_h) && (m_param.src_w == m_param.dst_w)) {
+            this->registerPreprocessFun(std::bind(&YOLO::rgb_preprocess, this));
+        }
+        else {
+            this->registerPreprocessFun(std::bind(&YOLO::rgb_resize_preprocess, this));
+        }
+    }
+    else {
+        throw("error image type: %s", imageType.c_str());
+    }
+
+
     m_param.model_path = configPath + node["object_detecion"]["modelpath"].as<std::string>();
     m_param.input_output_names = { "images",  "output0"};
     auto labelFileName = node["object_detecion"]["labelfile"].as<std::string>();
@@ -257,9 +272,31 @@ void yolo::YOLO::gray_preprocess()
         m_input_hwc_device, m_param.dst_w, m_param.dst_h);
 }
 
+void yolo::YOLO::gray_resize_preprocess()
+{
+    gray2rgbDevice(m_param.batch_size, m_input_src_device, m_param.dst_w, m_param.dst_h,
+        m_input_rgb_device, m_param.dst_w, m_param.dst_h);
+    resizeDevice(m_param.batch_size, m_input_rgb_device, m_param.src_w, m_param.src_h,
+        m_input_resize_device, m_param.dst_w, m_param.dst_h, 114, m_dst2src);
+    normDevice(m_param.batch_size, m_input_resize_device, m_param.dst_w, m_param.dst_h,
+        m_input_norm_device, m_param.dst_w, m_param.dst_h, m_param);
+    hwc2chwDevice(m_param.batch_size, m_input_norm_device, m_param.dst_w, m_param.dst_h,
+        m_input_hwc_device, m_param.dst_w, m_param.dst_h);
+}
+
 void yolo::YOLO::rgb_preprocess()
 {
     normDevice(m_param.batch_size, m_input_src_device, m_param.dst_w, m_param.dst_h,
+        m_input_norm_device, m_param.dst_w, m_param.dst_h, m_param);
+    hwc2chwDevice(m_param.batch_size, m_input_norm_device, m_param.dst_w, m_param.dst_h,
+        m_input_hwc_device, m_param.dst_w, m_param.dst_h);
+}
+
+void yolo::YOLO::rgb_resize_preprocess()
+{
+    resizeDevice(m_param.batch_size, m_input_src_device, m_param.src_w, m_param.src_h,
+        m_input_resize_device, m_param.dst_w, m_param.dst_h, 114, m_dst2src);
+    normDevice(m_param.batch_size, m_input_resize_device, m_param.dst_w, m_param.dst_h,
         m_input_norm_device, m_param.dst_w, m_param.dst_h, m_param);
     hwc2chwDevice(m_param.batch_size, m_input_norm_device, m_param.dst_w, m_param.dst_h,
         m_input_hwc_device, m_param.dst_w, m_param.dst_h);
