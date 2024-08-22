@@ -149,6 +149,7 @@
     <ClInclude Include="common\queue_splitter.h" />
     <ClInclude Include="common\ThreadPool.h" />
     <ClInclude Include="common\thread_safe_queue.h" />
+    <ClInclude Include="common\tools.h" />
     <ClInclude Include="Detector.h" />
     <ClInclude Include="DetectorThread\detector_thread.h" />
     <ClInclude Include="framework.h" />
@@ -164,9 +165,10 @@
     <ClInclude Include="yolo\yolo.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="C:\Program Files\TensorRT\TensorRT-8.6.1.6\samples\common\logger.cpp" />
+    <ClCompile Include="..\..\..\..\3rdParty\TensorRT-8.6.1.6\samples\common\logger.cpp" />
     <ClCompile Include="common\config_manager.cpp" />
     <ClCompile Include="common\image_process.cpp" />
+    <ClCompile Include="common\tools.cpp" />
     <ClCompile Include="Detector.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
     </ClCompile>

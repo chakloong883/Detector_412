@@ -3,8 +3,8 @@
   <ImportGroup Label="PropertySheets" />
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup>
-    <IncludePath>D:\zzl\进厂测试\yamlcpp\include;$(IncludePath)</IncludePath>
-    <LibraryPath>D:\zzl\进厂测试\yamlcpp\Debug;$(LibraryPath)</LibraryPath>
+    <IncludePath>D:\3rdParty\YAML_CPP\include;$(IncludePath)</IncludePath>
+    <LibraryPath>D:\3rdParty\YAML_CPP\Debug;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup>
     <Link />

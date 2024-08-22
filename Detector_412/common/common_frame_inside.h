@@ -1,10 +1,6 @@
 #pragma once
 #include "common_frame.h"
 
-struct Point {
-	float x;
-	float y;
-};
 
 struct ImagePos {
 	int rowBias;
@@ -24,10 +20,6 @@ struct BatchImageFrame {
 	int batchSize;
 };
 
-struct Circle {
-	Point circlePoint;
-	float radius;
-};
 
 struct BatchResultFrame {
 	std::shared_ptr<std::vector<std::vector<Defect>>> batchDefects;

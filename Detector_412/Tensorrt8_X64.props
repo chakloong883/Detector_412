@@ -3,8 +3,8 @@
   <ImportGroup Label="PropertySheets" />
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup>
-    <IncludePath>C:\Program Files\TensorRT\TensorRT-8.6.1.6\include;C:\Program Files\TensorRT\TensorRT-8.6.1.6\samples\common;$(IncludePath)</IncludePath>
-    <LibraryPath>C:\Program Files\TensorRT\TensorRT-8.6.1.6\lib;$(LibraryPath)</LibraryPath>
+    <IncludePath>D:\3rdParty\TensorRT-8.6.1.6\include;D:\3rdParty\TensorRT-8.6.1.6\samples\common;$(IncludePath)</IncludePath>
+    <LibraryPath>D:\3rdParty\TensorRT-8.6.1.6\lib;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup>
     <ClCompile>

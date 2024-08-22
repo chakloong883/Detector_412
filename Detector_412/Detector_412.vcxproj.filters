@@ -60,6 +60,9 @@
     <ClInclude Include="yolo\yolo.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="common\tools.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="common\config_manager.cpp">
@@ -86,8 +89,11 @@
     <ClCompile Include="yolo\yolo.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Program Files\TensorRT\TensorRT-8.6.1.6\samples\common\logger.cpp">
+    <ClCompile Include="..\..\..\..\3rdParty\TensorRT-8.6.1.6\samples\common\logger.cpp">
       <Filter>资源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="common\tools.cpp">
+      <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
