@@ -15,36 +15,16 @@ DetectorThread::DetectorThread() {
 }
 
 DetectorThread::~DetectorThread() {
-    if (copyImageToCudaThread_.joinable()) {
-        copyImageToCudaThreadShouldExit_ = true;
-        copyImageToCudaThread_.join();
-    }
-
-    if (cropImageThread_.joinable()) {
-        cropImageThreadShouldExit_ = true;
-        cropImageThread_.join();
-    }
     if (detectThread_.joinable()) {
         detectThreadShouldExit_ = true;
         detectThread_.join();
     }
-
-    if (postprocessThread_.joinable()) {
-        postprocessThreadShouldExit_ = true;
-        postprocessThread_.join();
-    }
-
-    if (allInOneThread_.joinable()) {
-        allInOneThreadShouldExit_ = true;
-        allInOneThread_.join();
-    }
-
     yolo_.reset();
 }
 
 
-bool DetectorThread::push(ImageFrame& frame) {
-    if (!imageQueue_->Enqueue(std::make_shared<ImageFrame>(frame))) {
+bool DetectorThread::push(ImageFrameInside& frame) {
+    if (!imageQueue_->Enqueue(std::make_shared<ImageFrameInside>(frame))) {
         std::cout << "image queue full!" << std::endl;
         return false;
     }
@@ -54,7 +34,7 @@ bool DetectorThread::push(ImageFrame& frame) {
     return true;
 }
 
-bool DetectorThread::get(ResultFrame& frame, std::string& uuid) {
+bool DetectorThread::get(ResultFrameInside& frame, std::string& uuid) {
     std::unique_lock<std::mutex> lock(resultFrameMapMutex_);
     resultFrameMapCV_.wait(lock, [&] {return resultFrameMap_.find(uuid) != resultFrameMap_.end(); });
     frame = resultFrameMap_[uuid];
@@ -66,14 +46,6 @@ void DetectorThread::registerTraditionFun(std::function<void(std::vector<cv::Mat
     traditionalDetectBatchImagesFun_ = cb;
 }
 
-
-void DetectorThread::copyImageToCudaThread() {
-    while (!copyImageToCudaThreadShouldExit_) {
-        if (copyImageToCuda_->execute()) {
-            continue;
-        }
-    }
-}
 
 
 bool DetectorThread::detectFunc() {
@@ -87,7 +59,15 @@ bool DetectorThread::detectFunc() {
     auto buffer = (*batchImage)->buffer;
     auto bufferCpu = (*batchImage)->bufferCpu;
     auto imagesPos = (*batchImage)->imagesPos;
-    if (needObjectDetection_) {
+    
+    BatchResultFramePtr outputFrame(new BatchResultFrame({
+        std::make_shared<std::vector<std::vector<Defect>>>(batchSize_),
+        imagesPos,
+        std::make_shared<std::vector<Circle>>(),
+        batchuuid
+    }));
+    
+    if (yolo_) {
         yolo_->setInputData(buffer);
         utils::DeviceTimer d_t1; yolo_->preprocess();  float t1 = d_t1.getUsedTime();
         utils::DeviceTimer d_t2; yolo_->infer();       float t2 = d_t2.getUsedTime();
@@ -95,24 +75,14 @@ bool DetectorThread::detectFunc() {
         sample::gLogInfo << "preprocess time = " << t1 / batchSize_ << "; "
             "infer time = " << t2 / batchSize_ << "; "
             "postprocess time = " << t3 / batchSize_ << std::endl;
+        *(outputFrame->batchDefects) = yolo_->getObjectss();
+        yolo_->reset();
     }
 
-    std::vector<cv::Mat> batchCpuImages;
-    tools::getCVBatchImages(batchCpuImages, (*batchImage));
-    BatchResultFramePtr outputFrame(new BatchResultFrame({
-        std::make_shared<std::vector<std::vector<Defect>>>(yolo_->getObjectss()),
-        imagesPos,
-        std::make_shared<std::vector<Circle>>(),
-        batchuuid
-        }));
-
-    yolo_->reset();
-
-    traditionalDetectBatchImagesFun_(batchCpuImages, outputFrame, thresholdValue1_, thresholdValue2_, inv_);
-
-    //utils::draw(*(outputFrame->batchDefects), batchCpuImages, batchuuid, true);
-
-
+    if (traditionalDetection_) {
+        traditionalDetection_->execute(*batchImage, outputFrame);
+    }
+    
     if (!batchResultQueue_->Enqueue(outputFrame)) {
         std::cout << "queue full" << std::endl;
         return false;
@@ -127,13 +97,6 @@ bool DetectorThread::detectFunc() {
     return true;
 }
 
-void DetectorThread::detectThread() {
-    while (!detectThreadShouldExit_) {
-        if (!detectFunc()) {
-            continue;
-        }
-    }
-}
 
 bool DetectorThread::postprocessFun() {
     auto batchResultFrame = batchResultQueue_->Dequeue();
@@ -162,9 +125,9 @@ bool DetectorThread::postprocessFun() {
         }
 
         if (isLast) {
-            ResultFrame resultFrame({ std::make_shared<std::vector<Defect>>(defects), uuid, circle, false, "" });
+            ResultFrameInside resultFrame({ { std::make_shared<std::vector<Defect>>(defects), false, "" }, circle, uuid });
             cv::Mat image;
-            tools::regularzation(resultFrame, circle, node_);
+            tools::regularzation(resultFrame, node_);
             std::lock_guard<std::mutex> lock(resultFrameMapMutex_);
             resultFrameMap_[uuid] = resultFrame;
             resultFrameMapCV_.notify_all();
@@ -176,16 +139,8 @@ bool DetectorThread::postprocessFun() {
     return true;
 }
 
-void DetectorThread::postprocessThread() {
-    while (!postprocessThreadShouldExit_) {
-        if (!postprocessFun()) {
-            continue;
-        }
-    }
-}
-
-void DetectorThread::allInOneThread() {
-    while (!allInOneThreadShouldExit_) {
+void DetectorThread::detectThread() {
+    while (!detectThreadShouldExit_) {
         if (!copyImageToCuda_->execute()) {
             continue;
         }
@@ -195,11 +150,9 @@ void DetectorThread::allInOneThread() {
 }
 
 
-bool DetectorThread::createDetector(std::string& configPath) {
-    configManager_ = ConfigManager::GetInstance(configPath);
-    auto node = configManager_->getConfig();
-    batchSize_ = node["object_detecion"]["batchsize"].as<int>();
-    auto objectDetectorUse = node["object_detecion"]["objectdetector"].as<std::string>();
+bool DetectorThread::createObjectDetection(std::string& configPath) {
+    batchSize_ = node_["object_detection"]["batchsize"].as<int>();
+    auto objectDetectorUse = node_["object_detection"]["objectdetector"].as<std::string>();
     std::vector<std::string> modelChoice = { "yolov5", "yolov6", "yolov7", "yolov8" };
     auto iterPoint = std::find(modelChoice.begin(), modelChoice.end(), objectDetectorUse);
     if (iterPoint != modelChoice.end()) {
@@ -226,44 +179,40 @@ bool DetectorThread::createDetector(std::string& configPath) {
 
 
 bool DetectorThread::Init(std::string& configPath) {
-    if (!createDetector(configPath)) {
-        std::cout << "create detector failed!" << std::endl;
-        return false;
+    configManager_ = ConfigManager::GetInstance(configPath);
+    node_ = configManager_->getConfig();
+    //this->registerTraditionFun(std::bind(&ImageProcess::detectGeneral, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5));
+    if (node_["object_detecion"]) {
+        batchSize_ = node_["object_detecion"]["batchsize"].as<int>();
+        if (!createObjectDetection(configPath)) {
+            std::cout << "create detector failed!" << std::endl;
+            return false;
+        }
     }
-    copyImageToCuda_ = std::make_shared<tools::CopyImageToCuda>(batchSize_, imageQueue_, batchImageQueue_);
-    auto config = ConfigManager::GetInstance(configPath);
-    node_ = config->getConfig();
-    //this->registerTraditionFun(std::bind(&DetectorThread::detectGeneral, this, std::placeholders::_1, std::placeholders::_2));
-    this->registerTraditionFun(std::bind(&ImageProcess::detectGeneral, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5));
-
     if (node_["tradition_detection"]) {
+        batchSize_ = node_["tradition_detection"]["batchsize"].as<int>();
         if (node_["tradition_detection"]["method"]) {
+            needTraditionDetection_ = true;
             if (node_["tradition_detection"]["method"].as<std::string>() == "detectmaociyijiaohuahen") {
-                this->registerTraditionFun(std::bind(&ImageProcess::detectMaociBatchImages, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5));
-                needObjectDetection_ = false;
+                //this->registerTraditionFun(std::bind(&ImageProcess::detectMaociBatchImages, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5));
+                traditionalDetection_ = std::make_shared<ImageProcess::DetectMaociHuahenBatchImages>(configPath);
+            }
+            else {
+                traditionalDetection_ = std::make_shared<ImageProcess::DetectGeneralBatchImages>(configPath);
             }
         }
-        if (node_["tradition_detection"]["thresholdvalue1"]) {
-            thresholdValue1_ = node_["tradition_detection"]["thresholdvalue1"].as<int>();
-        }
-        if (node_["tradition_detection"]["thresholdvalue2"]) {
-            thresholdValue2_ = node_["tradition_detection"]["thresholdvalue2"].as<int>();
-        }
-        if (node_["tradition_detection"]["inv"]) {
-            inv_ = node_["tradition_detection"]["inv"].as<bool>();
-        }
+        //if (node_["tradition_detection"]["thresholdvalue1"]) {
+        //    thresholdValue1_ = node_["tradition_detection"]["thresholdvalue1"].as<int>();
+        //}
+        //if (node_["tradition_detection"]["thresholdvalue2"]) {
+        //    thresholdValue2_ = node_["tradition_detection"]["thresholdvalue2"].as<int>();
+        //}
+        //if (node_["tradition_detection"]["inv"]) {
+        //    inv_ = node_["tradition_detection"]["inv"].as<bool>();
+        //}
     }
-
-    //assert(!copyImageToCudaThread_.joinable());
-    //copyImageToCudaThread_ = std::thread(&DetectorThread::copyImageToCudaThread, this);
-
-    //assert(!detectThread_.joinable());
-    //detectThread_ = std::thread(&DetectorThread::detectThread, this);
-
-    //assert(!postprocessThread_.joinable());
-    //postprocessThread_ = std::thread(&DetectorThread::postprocessThread, this);
-
-    assert(!allInOneThread_.joinable());
-    allInOneThread_ = std::thread(&DetectorThread::allInOneThread, this);
+    copyImageToCuda_ = std::make_shared<tools::CopyImageToCuda>(batchSize_, imageQueue_, batchImageQueue_);
+    assert(!detectThread_.joinable());
+    detectThread_ = std::thread(&DetectorThread::detectThread, this);
     return true;
 }

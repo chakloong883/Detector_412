@@ -1,7 +1,6 @@
 #include "tools.h"
 #include <iostream>
 #include <regex>
-#include<cuda_runtime_api.h>
 #include "../yolo/kernel_function.h"
 
 
@@ -101,7 +100,7 @@ namespace tools {
         }
         else {
             if (shrink > 0) {
-                distance = std::min({ distance1, distance2, distance3, distance4 });
+                distance = std::min({ distance1, distance2, distance3, distance4, distance5});
                 if (distance > circle.radius - shrinkRatio * shrink) {
                     keep = false;
                 }
@@ -111,7 +110,7 @@ namespace tools {
                 }
             }
             else if (shrink < 0) {
-                distance = std::max({ distance1, distance2, distance3, distance4 });
+                distance = std::max({ distance1, distance2, distance3, distance4, distance5 });
                 if (distance < circle.radius - shrinkRatio * shrink) {
                     keep = false;
                 }
@@ -210,8 +209,9 @@ namespace tools {
 
 
 
-    void regularzation(ResultFrame& frame, Circle& circle, YAML::Node& config) {
-        auto defect = frame.defects;
+    void regularzation(ResultFrameInside& frame, YAML::Node& config) {
+        auto defect = frame.resultFrame.defects;
+        auto circle = frame.circle;
         std::stringstream NGStateMent;
         int num = 0;
         for (auto it = defect->begin(); it != defect->end();) {
@@ -333,7 +333,7 @@ namespace tools {
                                 auto NGStandard = item["NG"].as<std::string>();
                                 if (compare(NGStandard, objValue)) {
                                     keep = true;
-                                    frame.NG = true;
+                                    frame.resultFrame.NG = true;
                                     NGStateMent << "The " << item["obj"].as<std::string>() << " of " << "the " << num << "th " << defectName << " " << NGStandard << ".";
                                     NGStateMent << "The " << item["obj"].as<std::string>() << " value is:" << objValue << std::endl;
                                     num += 1;
@@ -356,7 +356,7 @@ namespace tools {
             }
 
         }
-        frame.NGStateMent = NGStateMent.str();
+        frame.resultFrame.NGStateMent = NGStateMent.str();
     }
 
     bool CopyImageToCuda::execute(){
@@ -368,10 +368,10 @@ namespace tools {
         auto start1 = std::chrono::high_resolution_clock::now();
 
         auto uuid = (*imageFrame)->uuid;
-        auto imageBuf = (*imageFrame)->buffer;
-        auto imageWidth = (*imageFrame)->imageWidth;
-        auto imageHeight = (*imageFrame)->imageHeight;
-        auto channelNum = (*imageFrame)->channelNum;
+        auto imageBuf = (*imageFrame)->imageFrame.buffer;
+        auto imageWidth = (*imageFrame)->imageFrame.imageWidth;
+        auto imageHeight = (*imageFrame)->imageFrame.imageHeight;
+        auto channelNum = (*imageFrame)->imageFrame.channelNum;
         auto bufferSize = imageWidth * imageHeight * channelNum;
 
         if (frameCount_ % batchSize_ == 0) {
@@ -474,6 +474,59 @@ namespace tools {
         }
 
         return minDistance;
+    }
+
+    HostTimer::HostTimer(){
+        t1 = std::chrono::steady_clock::now();
+    }
+
+    HostTimer::~HostTimer() {
+
+    }
+
+    float HostTimer::getUsedTime(){
+        t2 = std::chrono::steady_clock::now();
+        std::chrono::duration<double> time_used = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
+        return(1000 * time_used.count()); // ms
+    }
+
+
+    DeviceTimer::DeviceTimer()
+    {
+        cudaEventCreate(&start);
+        cudaEventCreate(&end);
+        cudaEventRecord(start);
+    }
+
+    float DeviceTimer::getUsedTime()
+    {
+        cudaEventRecord(end);
+        cudaEventSynchronize(end);
+        float total_time;
+        cudaEventElapsedTime(&total_time, start, end);
+        return total_time;
+    }
+
+    DeviceTimer::DeviceTimer(cudaStream_t stream)
+    {
+        cudaEventCreate(&start);
+        cudaEventCreate(&end);
+        cudaEventRecord(start, stream);
+    }
+
+    float DeviceTimer::getUsedTime(cudaStream_t stream)
+    {
+        cudaEventRecord(end, stream);
+        cudaEventSynchronize(end);
+        float total_time;
+        cudaEventElapsedTime(&total_time, start, end);
+        return total_time;
+    }
+
+    DeviceTimer::~DeviceTimer()
+    {
+        cudaEventDestroy(start);
+        cudaEventDestroy(end);
     }
 };
 

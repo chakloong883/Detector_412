@@ -8,23 +8,6 @@ struct ImageFrame {
 	int imageWidth;
 	int imageHeight;
 	int channelNum;
-    std::string uuid;
-};
-struct Point {
-    float x;
-    float y;
-};
-
-struct Size {
-    float width;
-    float height;
-};
-
-struct Circle {
-    Point circlePoint;
-    Size size;
-    float angle;
-    float radius;
 };
 
 
@@ -53,8 +36,6 @@ struct Defect {
 
 struct ResultFrame {
     std::shared_ptr<std::vector<Defect>> defects;
-    std::string uuid;
-    Circle circle;
     bool NG;
     std::string NGStateMent;
 };

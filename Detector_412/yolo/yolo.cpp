@@ -5,18 +5,18 @@ yolo::YOLO::YOLO(std::string& configPath)
 {
     auto configManager = ConfigManager::GetInstance(configPath);
     auto node = configManager->getConfig();
-    auto imageType = node["object_detecion"]["imagetype"].as<std::string>();
+    auto imageType = node["object_detection"]["imagetype"].as<std::string>();
 
 
-    m_param.num_class = node["object_detecion"]["classnum"].as<int>();
-    m_param.iou_thresh = node["object_detecion"]["nmsthres"].as<float>();
-    m_param.conf_thresh = node["object_detecion"]["confidencethres"].as<float>();
-    m_param.dynamic_batch = node["object_detecion"]["dynamicbatch"].as<bool>();
-    m_param.batch_size = node["object_detecion"]["batchsize"].as<int>();
-    m_param.src_h = node["object_detecion"]["imagesize"].as<int>();
-    m_param.src_w = node["object_detecion"]["imagesize"].as<int>();
-    m_param.dst_h = node["object_detecion"]["modelsize"].as<int>();
-    m_param.dst_w = node["object_detecion"]["modelsize"].as<int>();
+    m_param.num_class = node["object_detection"]["classnum"].as<int>();
+    m_param.iou_thresh = node["object_detection"]["nmsthres"].as<float>();
+    m_param.conf_thresh = node["object_detection"]["confidencethres"].as<float>();
+    m_param.dynamic_batch = node["object_detection"]["dynamicbatch"].as<bool>();
+    m_param.batch_size = node["object_detection"]["batchsize"].as<int>();
+    m_param.src_h = node["object_detection"]["imagesize"].as<int>();
+    m_param.src_w = node["object_detection"]["imagesize"].as<int>();
+    m_param.dst_h = node["object_detection"]["modelsize"].as<int>();
+    m_param.dst_w = node["object_detection"]["modelsize"].as<int>();
 
 
     if (imageType == "gray") {
@@ -40,9 +40,9 @@ yolo::YOLO::YOLO(std::string& configPath)
     }
 
 
-    m_param.model_path = configPath + node["object_detecion"]["modelpath"].as<std::string>();
+    m_param.model_path = configPath + node["object_detection"]["modelpath"].as<std::string>();
     m_param.input_output_names = { "images",  "output0"};
-    auto labelFileName = node["object_detecion"]["labelfile"].as<std::string>();
+    auto labelFileName = node["object_detection"]["labelfile"].as<std::string>();
     auto labelFilePath = configPath + "/labels/" + labelFileName;
     std::ifstream file(labelFilePath);
     std::string line;

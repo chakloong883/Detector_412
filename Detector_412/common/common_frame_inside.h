@@ -1,6 +1,35 @@
 #pragma once
 #include "common_frame.h"
 
+struct Point {
+	float x;
+	float y;
+};
+
+struct Size {
+	float width;
+	float height;
+};
+
+struct Circle {
+	Point circlePoint;
+	Size size;
+	float angle;
+	float radius;
+};
+
+
+struct ImageFrameInside {
+	ImageFrame imageFrame;
+	std::string uuid;
+};
+
+struct ResultFrameInside {
+	ResultFrame resultFrame;
+	Circle circle;
+	std::string uuid;
+};
+
 
 struct ImagePos {
 	int rowBias;

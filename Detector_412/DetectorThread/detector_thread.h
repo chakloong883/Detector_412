@@ -19,65 +19,38 @@ public:
 	DetectorThread();
 	~DetectorThread();
 	bool Init(std::string& configPath);
-	bool push(ImageFrame& frame);
-	bool get(ResultFrame& frame, std::string& uuid);
+	bool push(ImageFrameInside& frame);
+	bool get(ResultFrameInside& frame, std::string& uuid);
 private:
-	bool createDetector(std::string& detectorUse);
-	bool copyImageToCudaFunc(bool useSingle = true);
-	void copyImageToCudaThread();
-	void detectGeneral(std::vector<cv::Mat>& images, BatchResultFramePtr outputframe);
-	void detectMaociBatchImages(std::vector<cv::Mat>& image, BatchResultFramePtr outputframe);
+	bool createObjectDetection(std::string& detectorUse);
 	void registerTraditionFun(std::function<void(std::vector<cv::Mat>&, BatchResultFramePtr, int, int, bool)> cb);
 	std::function<void(std::vector<cv::Mat>&, BatchResultFramePtr, int, int, bool)> traditionalDetectBatchImagesFun_;
 
-	void regularzation(ResultFrame& frame, cv::Mat& image, Circle& circle);
-	void cropImageThread();
 	bool detectFunc();
-	void detectThread();
 	bool postprocessFun();
-	void postprocessThread();
-	void allInOneThread();
-	int batchSize_;
+	void detectThread();
+	int batchSize_ = 1;
 
 	std::shared_ptr<yolo::YOLO>  yolo_;
 	std::shared_ptr<tools::CopyImageToCuda> copyImageToCuda_;
-	//ConfigManager* configManager_;
+	std::shared_ptr<ImageProcess::DetectGeneralBatchImages> traditionalDetection_;
 	
-	std::thread copyImageToCudaThread_;
-	std::thread cropImageThread_;
 	std::thread detectThread_;
-	std::thread postprocessThread_;
-	std::thread allInOneThread_;
-
-
-	std::atomic<bool> copyImageToCudaThreadShouldExit_;
-	std::atomic<bool> cropImageThreadShouldExit_;
 	std::atomic<bool> detectThreadShouldExit_;
-	std::atomic<bool> postprocessThreadShouldExit_;
-	std::atomic<bool> allInOneThreadShouldExit_;
-
-
 	ImageFrameQueuePtr imageQueue_;
 	BatchImageFrameQueuePtr batchImageQueue_;
 	BatchResultFrameQueuePtr batchResultQueue_;
-	std::map<std::string, ResultFrame> resultFrameMap_;
+	std::map<std::string, ResultFrameInside> resultFrameMap_;
 	std::mutex resultFrameMapMutex_;
 	std::condition_variable resultFrameMapCV_;
 	std::shared_ptr<ConfigManager> configManager_;
 	YAML::Node node_;
 	
+	// 待删除
 	bool needObjectDetection_ = true;
+	bool needTraditionDetection_ = true;
 	int thresholdValue1_ = 188;
 	int thresholdValue2_ = 25;
 	bool inv_ = false;
-
-	// 用于拷贝线程
-	std::vector<ImagePos> imagePos_;
-	std::vector<std::string> batchuuid_;
-	void* data_ = nullptr;
-	void* dataCpu_ = nullptr;
-	unsigned char* dataPoint_ = nullptr;
-	unsigned char* dataPointCpu_ = nullptr;
-	int frameCount_ = 0;
 
 };

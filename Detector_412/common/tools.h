@@ -3,6 +3,8 @@
 #include "common_queue.h"
 #include "yaml-cpp/yaml.h"
 #include "opencv2/opencv.hpp"
+#include<cuda_runtime.h>
+#include<cuda_runtime_api.h>
 
 namespace tools {
     void getCVBatchImages(std::vector<cv::Mat>& batchImages, BatchImageFramePtr frame);
@@ -11,7 +13,7 @@ namespace tools {
     double calculateAngleDifference(double angle1, double angle2);
     void shrinkFilter(Defect& defect, Circle& circle, float& shrink, float& shrinkRatio, bool& keep, float& distanceBias);
     bool compare(const std::string& condition, float a);
-    void regularzation(ResultFrame& frame, Circle& circle, YAML::Node& config);
+    void regularzation(ResultFrameInside& frame, YAML::Node& config);
     class CopyImageToCuda {
     public:
         CopyImageToCuda(int batchSize, ImageFrameQueuePtr inputQueue, BatchImageFrameQueuePtr outputQueue) :batchSize_(batchSize), inputQueue_(inputQueue), outputQueue_(outputQueue){}
@@ -40,5 +42,32 @@ namespace tools {
     // 计算点到多边形轮廓的最短距离
     double shortestDistanceToContour(const Point& point, const std::vector<Point>& contour);
 
+
+    class HostTimer
+    {
+    public:
+        HostTimer();
+        float getUsedTime(); // while timing for cuda code, add "cudaDeviceSynchronize();" before this
+        ~HostTimer();
+
+    private:
+        std::chrono::steady_clock::time_point t1;
+        std::chrono::steady_clock::time_point t2;
+    };
+
+    class DeviceTimer
+    {
+    public:
+        DeviceTimer();
+        float getUsedTime();
+        // overload
+        DeviceTimer(cudaStream_t ctream);
+        float getUsedTime(cudaStream_t ctream);
+
+        ~DeviceTimer();
+
+    private:
+        cudaEvent_t start, end;
+    };
 
 };

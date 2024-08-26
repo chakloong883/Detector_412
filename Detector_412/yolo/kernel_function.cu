@@ -311,6 +311,106 @@ void gray2rgb_device_kernel(const unsigned char* grayImage, float* rgbImage, int
 }
 
 
+__global__
+void rgb2gray_device_kernel(const unsigned char* rgbImage, unsigned char* grayImage, int batch_size, int img_volume) {
+	int dx = blockDim.x * blockIdx.x + threadIdx.x;
+	int dy = blockDim.y * blockIdx.y + threadIdx.y;
+
+	if (dx < img_volume && dy < batch_size) {
+		int grayIndex = dy * img_volume + dx;
+		int rgbIndex = grayIndex * 3;
+		unsigned char r = rgbImage[rgbIndex];
+		unsigned char g = rgbImage[rgbIndex + 1];
+		unsigned char b = rgbImage[rgbIndex + 2];
+		grayImage[grayIndex] = static_cast<unsigned char>(0.299f * r + 0.587f * g + 0.114f * b);
+	}
+}
+
+
+__global__
+void binary_batch_device_kernel(const unsigned char* src, unsigned char* dst, int batch_size, int img_volume, bool inv, int thresHold) {
+	int dx = blockDim.x * blockIdx.x + threadIdx.x;
+	int dy = blockDim.y * blockIdx.y + threadIdx.y;
+
+	if (dx < img_volume && dy < batch_size) {
+		int grayIndex = dy * img_volume + dx;
+		dst[grayIndex] = inv == false?(src[grayIndex] > thresHold ? 255 : 0): (src[grayIndex] < thresHold ? 255 : 0);
+	}
+}
+
+
+
+
+__global__
+void erosion_device_kernel_batch_device_kernel(const unsigned char* inputImage, unsigned char* outputImage, int width, int height, int batch_size, int kernelSize) {
+	int x = blockDim.x * blockIdx.x + threadIdx.x;
+	int y = blockDim.y * blockIdx.y + threadIdx.y;
+	int batch_idx = blockDim.z * blockIdx.z + threadIdx.z;
+
+	if (x < width && y < height && batch_idx < batch_size) {
+		// 定义结构元素的半径（如3x3结构元素的半径为1）
+		int radius = kernelSize/2;
+		bool erosion = true;
+
+		// 计算当前批次图像的偏移量
+		int batch_offset = batch_idx * width * height;
+
+		// 遍历结构元素的每个像素
+		for (int ky = -radius; ky <= radius; ky++) {
+			for (int kx = -radius; kx <= radius; kx++) {
+				int nx = x + kx;
+				int ny = y + ky;
+
+				// 检查邻域中的每个像素，如果有一个是背景，则侵蚀当前像素
+				if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
+					if (inputImage[batch_offset + ny * width + nx] == 0) {
+						erosion = false;
+					}
+				}
+			}
+		}
+
+		outputImage[batch_offset + y * width + x] = erosion ? 255 : 0;
+	}
+}
+
+
+
+__global__
+void dilation_device_kernel_batch_device_kernel(const unsigned char* inputImage, unsigned char* outputImage, int width, int height, int batch_size, int kernelSize) {
+	int x = blockDim.x * blockIdx.x + threadIdx.x;
+	int y = blockDim.y * blockIdx.y + threadIdx.y;
+	int batch_idx = blockDim.z * blockIdx.z + threadIdx.z;
+
+	if (x < width && y < height && batch_idx < batch_size) {
+		// 定义结构元素的半径（如3x3结构元素的半径为1）
+		int radius = kernelSize/2;
+		bool dilation = false;
+
+		// 计算当前批次图像的偏移量
+		int batch_offset = batch_idx * width * height;
+
+		// 遍历结构元素的每个像素
+		for (int ky = -radius; ky <= radius; ky++) {
+			for (int kx = -radius; kx <= radius; kx++) {
+				int nx = x + kx;
+				int ny = y + ky;
+
+				// 检查邻域中的每个像素，如果有一个是前景，则膨胀当前像素
+				if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
+					if (inputImage[batch_offset + ny * width + nx] == 255) {
+						dilation = true;
+					}
+				}
+			}
+		}
+
+		outputImage[batch_offset + y * width + x] = dilation ? 255 : 0;
+	}
+}
+
+
+
 static __device__  
 float norm_device(float val, float s, float mean, float std)
 {
@@ -482,6 +582,54 @@ void gray2rgbDevice(const int& batchSize, unsigned char* src, int srcWidth, int 
 	int img_volume = srcHeight * srcWidth;
 
 	gray2rgb_device_kernel <<<grid_size, block_size, 0, nullptr>>> (src, dst, batchSize, img_volume);
+
+}
+
+
+void rgb2grayDevice(const int& batchSize, unsigned char* src, int srcWidth, int srcHeight,
+	unsigned char* dst, int dstWidth, int dstHeight)
+{
+	dim3 block_size(BLOCK_SIZE, BLOCK_SIZE);
+	dim3 grid_size((dstWidth * dstHeight * 3 + BLOCK_SIZE - 1) / BLOCK_SIZE,
+		(batchSize + BLOCK_SIZE - 1) / BLOCK_SIZE);
+	int img_volume = srcHeight * srcWidth;
+
+	rgb2gray_device_kernel << <grid_size, block_size, 0, nullptr >> > (src, dst, batchSize, img_volume);
+
+}
+
+void binaryDevice(const int& batchSize, unsigned char* src, int srcWidth, int srcHeight,
+	unsigned char* dst, int dstWidth, int dstHeight, bool& inv, int threshold)
+{
+	dim3 block_size(BLOCK_SIZE, BLOCK_SIZE);
+	dim3 grid_size((dstWidth * dstHeight + BLOCK_SIZE - 1) / BLOCK_SIZE,
+		(batchSize + BLOCK_SIZE - 1) / BLOCK_SIZE);
+	int img_volume = srcHeight * srcWidth;
+
+	binary_batch_device_kernel << <grid_size, block_size, 0, nullptr >> > (src, dst, batchSize, img_volume, inv, threshold);
+
+}
+
+
+void erosionDevice(const int& batchSize, unsigned char* src, int srcWidth, int srcHeight,
+	unsigned char* dst, int dstWidth, int dstHeight, int kernelSize)
+{
+	dim3 block_size(BLOCK_SIZE, BLOCK_SIZE);
+	dim3 grid_size((dstWidth+ BLOCK_SIZE - 1) / BLOCK_SIZE,
+		(dstHeight + BLOCK_SIZE - 1) / BLOCK_SIZE, batchSize);
+
+	erosion_device_kernel_batch_device_kernel << <grid_size, block_size, 0, nullptr >> > (src, dst, dstWidth, dstHeight, batchSize, kernelSize);
+
+}
+
+void dilationDevice(const int& batchSize, unsigned char* src, int srcWidth, int srcHeight,
+	unsigned char* dst, int dstWidth, int dstHeight, int kernelSize)
+{
+	dim3 block_size(BLOCK_SIZE, BLOCK_SIZE);
+	dim3 grid_size((dstWidth + BLOCK_SIZE - 1) / BLOCK_SIZE,
+		(dstHeight + BLOCK_SIZE - 1) / BLOCK_SIZE, batchSize);
+
+	dilation_device_kernel_batch_device_kernel << <grid_size, block_size, 0, nullptr >> > (src, dst, dstWidth, dstHeight, batchSize, kernelSize);
 
 }
 

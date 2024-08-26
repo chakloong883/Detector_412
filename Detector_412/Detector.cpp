@@ -55,12 +55,12 @@ public:
     Impl(std::string&configPath) {
         configManager_ = ConfigManager::GetInstance(configPath);
         auto node = configManager_->getConfig();
-        if (node["object_detecion"]) {
-            if (node["object_detecion"]["imagetype"]) {
-                imageType_ = node["object_detecion"]["imagetype"].as<std::string>();
+        if (node["object_detection"]) {
+            if (node["object_detection"]["imagetype"]) {
+                imageType_ = node["object_detection"]["imagetype"].as<std::string>();
             }
-            if (node["object_detecion"]["imagesize"]) {
-                imageSize_ = node["object_detecion"]["imagesize"].as<int>();
+            if (node["object_detection"]["imagesize"]) {
+                imageSize_ = node["object_detection"]["imagesize"].as<int>();
             }
 
         }
@@ -77,7 +77,9 @@ public:
         detectorThread_.reset();
     }
 
-    bool process(std::string& uuid, ImageFrame& inputframe, ResultFrame& resultframe) {
+    bool process(ImageFrameInside& inputFrameInside, ResultFrameInside& resultFrameInside) {
+        auto inputframe = inputFrameInside.imageFrame;
+        auto uuid = inputFrameInside.uuid;
         if (imageType_ == "rgb") {
             if (inputframe.channelNum != 3) {
                 std::cout << "wrong channel num!, the imageType is " << imageType_ << ", the channel num is:" << inputframe.channelNum << std::endl;
@@ -97,7 +99,7 @@ public:
             return false;
         }
         auto start1 = std::chrono::high_resolution_clock::now();
-        if (!detectorThread_->push(inputframe)) {
+        if (!detectorThread_->push(inputFrameInside)) {
             std::cout << "the input queue full!" << std::endl;
             return false;
         }
@@ -105,7 +107,7 @@ public:
         std::chrono::duration<double, std::milli> elapsed = start2 - start1;
         std::cout << "push耗时: " << elapsed.count() << " 毫秒" << std::endl;
 
-        if (!detectorThread_->get(resultframe, uuid)) {
+        if (!detectorThread_->get(resultFrameInside, uuid)) {
             std::cout << "can't get the result frame!" << std::endl;
             return false;
         }
@@ -114,30 +116,32 @@ public:
         std::cout << "get耗时: " << elapsed.count() << " 毫秒" << std::endl;
 
         if (drawImage_) {
-            auto circle = resultframe.circle;
+            auto circle = resultFrameInside.circle;
             cv::Point2f pointCenter(circle.circlePoint.x, circle.circlePoint.y);
             cv::Size2f size(circle.size.width, circle.size.height);
             cv::RotatedRect rect(pointCenter, size, circle.angle);
             auto rect1 = rect;
-            rect1.size.width += 50 * 0.4;
-            rect1.size.height += 50 * 0.4;
+            rect1.size.width += 50 * 0.4 * 2;
+            rect1.size.height += 50 * 0.4 * 2;
             unsigned char* point = static_cast<unsigned char*>(inputframe.buffer.get());
             auto cvImageType = inputframe.channelNum == 1 ? CV_8UC1 : CV_8UC3;
             cv::Mat image(inputframe.imageHeight, inputframe.imageWidth, cvImageType, point);
-            cv::ellipse(image, rect, cv::Scalar(255, 0, 0), 2);
-            cv::ellipse(image, rect1, cv::Scalar(0, 0, 255), 2);
-            for (std::size_t i = 0; i < resultframe.defects->size(); i++) {
-                auto defectName = resultframe.defects->at(i).defectName;
-                std::string labelText = defectName + "_" + resultframe.defects->at(i).objFocus + ":" + cv::format("%.3f", resultframe.defects->at(i).objValue);
-                cv::Point textOrigin(resultframe.defects->at(i).box.left, resultframe.defects->at(i).box.top - 5);
-                cv::putText(image, labelText, textOrigin, cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 0, 0), 2);
-                cv::Point p1(resultframe.defects->at(i).box.left, resultframe.defects->at(i).box.top);
-                cv::Point p2(resultframe.defects->at(i).box.right, resultframe.defects->at(i).box.bottom);
-                cv::rectangle(image, cv::Rect(p1, p2), cv::Scalar(128, 77, 207), 2);
+            cv::ellipse(image, rect, cv::Scalar(0, 50, 0), 2);
+            cv::ellipse(image, rect1, cv::Scalar(0, 100, 255), 2);
+            for (std::size_t i = 0; i < resultFrameInside.resultFrame.defects->size(); i++) {
+                auto defectName = resultFrameInside.resultFrame.defects->at(i).defectName;
+                std::string labelText = defectName + "_" + resultFrameInside.resultFrame.defects->at(i).objFocus + ":" + cv::format("%.3f", resultFrameInside.resultFrame.defects->at(i).objValue);
+                cv::Point textOrigin(resultFrameInside.resultFrame.defects->at(i).box.left, resultFrameInside.resultFrame.defects->at(i).box.top - 5);
+                cv::putText(image, labelText, textOrigin, cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 80, 0), 2);
+                cv::Point p1(resultFrameInside.resultFrame.defects->at(i).box.left, resultFrameInside.resultFrame.defects->at(i).box.top);
+                cv::Point p2(resultFrameInside.resultFrame.defects->at(i).box.right, resultFrameInside.resultFrame.defects->at(i).box.bottom);
+                //cv::rectangle(image, cv::Rect(p1, p2), cv::Scalar(128, 77, 207), 2);
+                cv::rectangle(image, cv::Rect(p1, p2), cv::Scalar(0, 80, 0), 2);
+
             }
             start2 = std::chrono::high_resolution_clock::now();
             elapsed = start2 - start3;
-            std::cout << "画图耗时: " << elapsed.count() << " 毫秒，" << "平均用时：" << elapsed.count() / resultframe.defects->size() << "毫秒" << std::endl;
+            std::cout << "画图耗时: " << elapsed.count() << " 毫秒，" << "平均用时：" << elapsed.count() / resultFrameInside.resultFrame.defects->size() << "毫秒" << std::endl;
         }
         //std::unique_lock<std::mutex> lock(processMutex_);
         //std::cout << "processNum:" << processNum << std::endl;
@@ -165,21 +169,17 @@ Detector::~Detector() {
     std::cout << "析构成功" << std::endl;
 }
 
-//Detector* Detector::GetInstance(std::string configPath) {
-//    if (instance == nullptr) {
-//        std::lock_guard<std::mutex> lock(mutex_);
-//        if (instance == nullptr) {
-//            Detector* temp = new Detector(configPath);
-//            instance = temp;
-//        }
-//    }
-//    return instance;
-//}
-
 
 bool Detector::process(ImageFrame& inputframe, ResultFrame& resultframe) {
     std::string uuid = uuid::generate_uuid_v4();
-    inputframe.uuid = uuid;
-    return pimpl->process(uuid, inputframe, resultframe);
+    ImageFrameInside inputFrameInside({ inputframe , uuid });
+    ResultFrameInside resultFrameInside;
+    if (!pimpl->process(inputFrameInside, resultFrameInside)) {
+        return false;
+    }
+    else {
+        resultframe = resultFrameInside.resultFrame;
+        return true;
+    }
 }
 

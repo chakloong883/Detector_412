@@ -29,6 +29,9 @@ void bgr2rgbDevice(const int& batch_size, float* src, int srcWidth, int srcHeigh
 void gray2rgbDevice(const int& batchSize, unsigned char* src, int srcWidth, int srcHeight,
 	float* dst, int dstWidth, int dstHeight);
 
+void rgb2grayDevice(const int& batchSize, unsigned char* src, int srcWidth, int srcHeight,
+    unsigned char* dst, int dstWidth, int dstHeight);
+
 void normDevice(const int& batch_size, float* src, int srcWidth, int srcHeight,
     float* dst, int dstWidth, int dstHeight,
     utils::InitParameter norm_param);
@@ -51,3 +54,12 @@ void nmsDeviceV2(utils::InitParameter param, float* src, int srcWidth, int srcHe
 
 void copyWithPaddingDevice(const int& batchSize, float* src, int srcWidth, int srcHeight,
     float* dst, int dstWidth, int dstHeight, float paddingValue, int padTop, int padLeft);
+
+void binaryDevice(const int& batchSize, unsigned char* src, int srcWidth, int srcHeight,
+    unsigned char* dst, int dstWidth, int dstHeight, bool& inv, int threshold);
+
+void erosionDevice(const int& batchSize, unsigned char* src, int srcWidth, int srcHeight,
+    unsigned char* dst, int dstWidth, int dstHeight, int kernelSize);
+
+void dilationDevice(const int& batchSize, unsigned char* src, int srcWidth, int srcHeight,
+    unsigned char* dst, int dstWidth, int dstHeight, int kernelSize);

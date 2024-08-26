@@ -3,8 +3,8 @@
 #include "thread_safe_queue.h"
 #include "common_frame_inside.h"
 
-typedef std::shared_ptr<ImageFrame> ImageFramePtr;
-typedef std::shared_ptr<ResultFrame> ResultFramePtr;
+typedef std::shared_ptr<ImageFrameInside> ImageFramePtr;
+typedef std::shared_ptr<ResultFrameInside> ResultFramePtr;
 typedef std::shared_ptr<BatchImageFrame> BatchImageFramePtr;
 typedef std::shared_ptr<BatchResultFrame> BatchResultFramePtr;
 
