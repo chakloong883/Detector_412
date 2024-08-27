@@ -182,8 +182,8 @@ bool DetectorThread::Init(std::string& configPath) {
     configManager_ = ConfigManager::GetInstance(configPath);
     node_ = configManager_->getConfig();
     //this->registerTraditionFun(std::bind(&ImageProcess::detectGeneral, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5));
-    if (node_["object_detecion"]) {
-        batchSize_ = node_["object_detecion"]["batchsize"].as<int>();
+    if (node_["object_detection"]) {
+        batchSize_ = node_["object_detection"]["batchsize"].as<int>();
         if (!createObjectDetection(configPath)) {
             std::cout << "create detector failed!" << std::endl;
             return false;

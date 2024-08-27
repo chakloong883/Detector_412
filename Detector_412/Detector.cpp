@@ -64,6 +64,15 @@ public:
             }
 
         }
+        if (node["tradition_detection"]) {
+            if (node["tradition_detection"]["imagetype"]) {
+                imageType_ = node["tradition_detection"]["imagetype"].as<std::string>();
+            }
+            if (node["tradition_detection"]["imagesize"]) {
+                imageSize_ = node["tradition_detection"]["imagesize"].as<int>();
+            }
+
+        }
         if (node["drawimage"]) {
             drawImage_ = node["drawimage"].as<bool>();
         }
