@@ -614,7 +614,7 @@ void binaryDevice(const int& batchSize, unsigned char* src, int srcWidth, int sr
 void erosionDevice(const int& batchSize, unsigned char* src, int srcWidth, int srcHeight,
 	unsigned char* dst, int dstWidth, int dstHeight, int kernelSize)
 {
-	dim3 block_size(BLOCK_SIZE, BLOCK_SIZE);
+	dim3 block_size(BLOCK_SIZE, BLOCK_SIZE, 1);
 	dim3 grid_size((dstWidth+ BLOCK_SIZE - 1) / BLOCK_SIZE,
 		(dstHeight + BLOCK_SIZE - 1) / BLOCK_SIZE, batchSize);
 
@@ -625,7 +625,7 @@ void erosionDevice(const int& batchSize, unsigned char* src, int srcWidth, int s
 void dilationDevice(const int& batchSize, unsigned char* src, int srcWidth, int srcHeight,
 	unsigned char* dst, int dstWidth, int dstHeight, int kernelSize)
 {
-	dim3 block_size(BLOCK_SIZE, BLOCK_SIZE);
+	dim3 block_size(BLOCK_SIZE, BLOCK_SIZE, 1);
 	dim3 grid_size((dstWidth + BLOCK_SIZE - 1) / BLOCK_SIZE,
 		(dstHeight + BLOCK_SIZE - 1) / BLOCK_SIZE, batchSize);
 
