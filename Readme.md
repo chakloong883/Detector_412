@@ -1,10 +1,10 @@
 # 412项目算法接口说明
 ## 环境要求
 需要准备以下环境，并将以下环境写入环境目录中，方便运行时加载dll
-- YAMLCPP
-- OpenCV4
-- Tensorrt8.6
-- CUDA11.6
+- [YAMLCPP](https://github.com/jbeder/yaml-cpp)
+- [OpenCV4](https://opencv.org/releases/)
+- [Tensorrt8.6](https://developer.nvidia.com/nvidia-tensorrt-8x-download)
+- [CUDA11.6](https://developer.nvidia.com/cuda-11-6-0-download-archive)
 ## 属性表配置
 - 拿到代码后需要修改Debug64和Release64的以下属性表位置，修改包含目录、库目录及附加依赖项
     - YAMLCPP_X64.prop
@@ -56,7 +56,26 @@
         yolo.h
 ```
 
-## 与软件对接的接口
+
+
+## 接口使用说明
+### 生成接口
+visual studio选择Release模式，右键本工程，点击生成，即可在工程目录下x64/Release生成dll。
+### 接口准备
+除了生成的Detector_412.dll和Detector_412.lib，还需要准备其他依赖的库文件，完整的接口打包应该准备如下文件：
+```
+│  cudart64_110.dll
+│  Detector.h
+│  Detector_412.dll
+│  Detector_412.lib
+│  nvinfer.dll
+│  opencv_world440.dll
+│  yaml-cpp.dll
+│
+└─common
+        common_frame.h
+```
+### 与软件对接的接口
 ```
 //common/common_frame.h
 struct ImageFrame {
@@ -110,23 +129,6 @@ private:
 };
 ```
 
-## 接口使用说明
-### 生成接口
-visual studio选择Release模式，右键本工程，点击生成，即可在工程目录下x64/Release生成dll。
-### 接口准备
-除了生成的Detector_412.dll和Detector_412.lib，还需要准备其他依赖的库文件，完整的接口打包应该准备如下文件：
-```
-│  cudart64_110.dll
-│  Detector.h
-│  Detector_412.dll
-│  Detector_412.lib
-│  nvinfer.dll
-│  opencv_world440.dll
-│  yaml-cpp.dll
-│
-└─common
-        common_frame.h
-```
 
 ### 接口调用示例
 - 在调用前，应准备好需要的配置文件。
