@@ -75,7 +75,7 @@ visual studioÑ¡ÔñReleaseÄ£Ê½£¬ÓÒ¼ü±¾¹¤³Ì£¬µã»÷Éú³É£¬¼´¿ÉÔÚ¹¤³ÌÄ¿Â¼ÏÂx64/ReleaseÉ
 ©¸©¤common
         common_frame.h
 ```
-### ÓëÈí¼ş¶Ô½ÓµÄ½Ó¿Ú
+### ÓëÈí¼ş¶Ô½ÓµÄ¹«¹²½Ó¿Ú
 ```
 //common/common_frame.h
 struct ImageFrame {
