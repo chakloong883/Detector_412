@@ -40,4 +40,10 @@ namespace ImageProcess {
         DetectMaociHuahenBatchImages(std::string& configPath):ImageProcess::DetectGeneralBatchImages(configPath){}
         virtual void execute(BatchImageFramePtr inputFrame, BatchResultFramePtr outputframe);
     };
+
+    class DetectCornerBatchImages : public DetectGeneralBatchImages {
+    public:
+        DetectCornerBatchImages(std::string& configPath) :ImageProcess::DetectGeneralBatchImages(configPath) {}
+        virtual void execute(BatchImageFramePtr inputFrame, BatchResultFramePtr outputframe);
+    };
 };

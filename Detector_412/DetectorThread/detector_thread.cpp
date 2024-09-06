@@ -125,9 +125,11 @@ bool DetectorThread::postprocessFun() {
         }
 
         if (isLast) {
-            ResultFrameInside resultFrame({ { std::make_shared<std::vector<Defect>>(defects), false, "" }, circle, uuid });
+            ResultFrameInside resultFrame({ { std::make_shared<std::vector<Defect>>(defects), defects.size(), false, ""}, circle, uuid});
             cv::Mat image;
-            tools::regularzation(resultFrame, node_);
+            if (node_["defect_filter"]){
+                tools::regularzation(resultFrame, node_);
+            }
             std::lock_guard<std::mutex> lock(resultFrameMapMutex_);
             resultFrameMap_[uuid] = resultFrame;
             resultFrameMapCV_.notify_all();
@@ -197,8 +199,11 @@ bool DetectorThread::Init(std::string& configPath) {
                 //this->registerTraditionFun(std::bind(&ImageProcess::detectMaociBatchImages, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5));
                 traditionalDetection_ = std::make_shared<ImageProcess::DetectMaociHuahenBatchImages>(configPath);
             }
-            else {
+            else if (node_["tradition_detection"]["method"].as<std::string>() == "general"){
                 traditionalDetection_ = std::make_shared<ImageProcess::DetectGeneralBatchImages>(configPath);
+            }
+            else if (node_["tradition_detection"]["method"].as<std::string>() == "detectcorner") {
+                traditionalDetection_ = std::make_shared<ImageProcess::DetectCornerBatchImages>(configPath);
             }
         }
         //if (node_["tradition_detection"]["thresholdvalue1"]) {

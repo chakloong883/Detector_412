@@ -318,10 +318,10 @@ ImageProcess::DetectGeneralBatchImages::DetectGeneralBatchImages(std::string& co
     auto configManager = ConfigManager::GetInstance(configPath);
     auto node = configManager->getConfig();
     batchSize_ = node["tradition_detection"]["batchsize"].as<int>();
-    srcHeight_ = node["tradition_detection"]["imagesize"].as<int>();
-    srcWidth_ = node["tradition_detection"]["imagesize"].as<int>();
-    dstHeight_ = node["tradition_detection"]["imagesize"].as<int>();
-    dstWidth_ = node["tradition_detection"]["imagesize"].as<int>();
+    srcHeight_ = node["tradition_detection"]["imagesizeH"].as<int>();
+    srcWidth_ = node["tradition_detection"]["imagesizeW"].as<int>();
+    dstHeight_ = node["tradition_detection"]["imagesizeH"].as<int>();
+    dstWidth_ = node["tradition_detection"]["imagesizeW"].as<int>();
     imageType_ = node["tradition_detection"]["imagetype"].as<std::string>();
     inv_ = node["tradition_detection"]["inv"].as<bool>();
     thresHold1_ = node["tradition_detection"]["thresholdvalue1"].as<int>();
@@ -605,4 +605,45 @@ void ImageProcess::DetectMaociHuahenBatchImages::execute(BatchImageFramePtr inpu
     delete[]binaryBufCpu;
     delete[]dilateBufCpu;
     std::cout << "其余耗时:" << d3.getUsedTime() << std::endl;
+}
+
+void ImageProcess::DetectCornerBatchImages::execute(BatchImageFramePtr inputFrame, BatchResultFramePtr outputframe) {
+    tools::DeviceTimer d1;
+    auto gpuBuffer = inputFrame->buffer;
+    unsigned char* grayGpuBuf = nullptr;
+    if (imageType_ == "rgb") {
+        grayGpuBuf = grayDevice_;
+        rgb2grayDevice(batchSize_, static_cast<unsigned char*>(gpuBuffer.get()), srcWidth_, srcHeight_, grayDevice_, dstWidth_, dstHeight_);
+        binaryDevice(batchSize_, grayDevice_, srcWidth_, srcHeight_, binaryDevice_, dstWidth_, dstHeight_, inv_, thresHold1_);
+    }
+    else {
+        grayGpuBuf = static_cast<unsigned char*>(gpuBuffer.get());
+        binaryDevice(batchSize_, static_cast<unsigned char*>(gpuBuffer.get()), srcWidth_, srcHeight_, binaryDevice_, dstWidth_, dstHeight_, inv_, thresHold1_);
+    }
+    std::cout << "cuda 二值化运算耗时:" << d1.getUsedTime() << std::endl;
+    tools::DeviceTimer d2;
+    int bufSize = inputFrame->batchSize * inputFrame->imageHeight * inputFrame->imageWidth;
+    unsigned char* bufCpu = new unsigned char[bufSize];
+    cudaMemcpy(bufCpu, binaryDevice_, bufSize, cudaMemcpyDeviceToHost);
+    std::cout << "拷贝耗时:" << d2.getUsedTime() << std::endl;
+    unsigned char* bufCpuTemp = bufCpu;
+    tools::HostTimer d3;
+    for (int i = 0; i < batchSize_; i++) {
+        cv::Mat image(inputFrame->imageHeight, inputFrame->imageWidth, CV_8UC1, bufCpuTemp);
+        bufCpuTemp += sizeof(unsigned char) * inputFrame->imageHeight * inputFrame->imageWidth;
+        std::vector<std::vector<cv::Point>> contours;
+        cv::findContours(image, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
+        for (std::size_t j = 0; j < contours.size(); j++) {
+            cv::Rect boundingRect = cv::boundingRect(contours[j]);
+            auto left = boundingRect.br().x;
+            auto top = boundingRect.br().y;
+            auto right = left + 2;
+            auto bottom = top + 2;
+            Box box(left, top, right, bottom, 1.0, 0);
+            outputframe->batchDefects->at(i).push_back(Defect("corner", box));
+        }
+    }
+    delete[]bufCpu;
+    std::cout << "检测角点耗时:" << d3.getUsedTime() << std::endl;
+
 }

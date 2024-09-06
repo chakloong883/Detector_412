@@ -28,7 +28,7 @@ struct Box
 struct Defect {
     std::string defectName;
     Box box;
-    std::string objFocus;
+    std::string objFocus = "";
     float objValue = 0.0;
     Defect() = default;
     Defect (std::string defectName, Box box):defectName(defectName), box(box){}
@@ -36,6 +36,7 @@ struct Defect {
 
 struct ResultFrame {
     std::shared_ptr<std::vector<Defect>> defects;
+    std::size_t numDefects;
     bool NG;
     std::string NGStateMent;
 };

@@ -13,8 +13,8 @@ yolo::YOLO::YOLO(std::string& configPath)
     m_param.conf_thresh = node["object_detection"]["confidencethres"].as<float>();
     m_param.dynamic_batch = node["object_detection"]["dynamicbatch"].as<bool>();
     m_param.batch_size = node["object_detection"]["batchsize"].as<int>();
-    m_param.src_h = node["object_detection"]["imagesize"].as<int>();
-    m_param.src_w = node["object_detection"]["imagesize"].as<int>();
+    m_param.src_h = node["object_detection"]["imagesizeH"].as<int>();
+    m_param.src_w = node["object_detection"]["imagesizeW"].as<int>();
     m_param.dst_h = node["object_detection"]["modelsize"].as<int>();
     m_param.dst_w = node["object_detection"]["modelsize"].as<int>();
 

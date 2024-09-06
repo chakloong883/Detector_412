@@ -356,6 +356,7 @@ namespace tools {
             }
 
         }
+        frame.resultFrame.numDefects = frame.resultFrame.defects->size();
         frame.resultFrame.NGStateMent = NGStateMent.str();
     }
 

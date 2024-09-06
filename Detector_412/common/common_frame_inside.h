@@ -7,8 +7,8 @@ struct Point {
 };
 
 struct Size {
-	float width;
-	float height;
+	float width = 0;
+	float height = 0;
 };
 
 struct Circle {

@@ -54,32 +54,43 @@ struct Detector::Impl {
 public:
     Impl(std::string&configPath) {
         configManager_ = ConfigManager::GetInstance(configPath);
-        auto node = configManager_->getConfig();
-        if (node["object_detection"]) {
-            if (node["object_detection"]["imagetype"]) {
-                imageType_ = node["object_detection"]["imagetype"].as<std::string>();
+        node_ = configManager_->getConfig();
+        if (node_["object_detection"]) {
+            if (node_["object_detection"]["imagetype"]) {
+                imageType_ = node_["object_detection"]["imagetype"].as<std::string>();
             }
-            if (node["object_detection"]["imagesize"]) {
-                imageSize_ = node["object_detection"]["imagesize"].as<int>();
-            }
-
-        }
-        if (node["tradition_detection"]) {
-            if (node["tradition_detection"]["imagetype"]) {
-                imageType_ = node["tradition_detection"]["imagetype"].as<std::string>();
-            }
-            if (node["tradition_detection"]["imagesize"]) {
-                imageSize_ = node["tradition_detection"]["imagesize"].as<int>();
+            if (node_["object_detection"]["imagesizeH"]) {
+                imageSizeH_ = node_["object_detection"]["imagesizeH"].as<int>();
+                imageSizeW_ = node_["object_detection"]["imagesizeW"].as<int>();
             }
 
         }
-        if (node["drawimage"]) {
-            drawImage_ = node["drawimage"].as<bool>();
+        if (node_["tradition_detection"]) {
+            if (node_["tradition_detection"]["imagetype"]) {
+                imageType_ = node_["tradition_detection"]["imagetype"].as<std::string>();
+            }
+            if (node_["tradition_detection"]["imagesizeH"]) {
+                imageSizeH_ = node_["tradition_detection"]["imagesizeH"].as<int>();
+                imageSizeW_ = node_["tradition_detection"]["imagesizeW"].as<int>();
+            }
+
         }
+        if (node_["drawimage"]) {
+            drawImage_ = node_["drawimage"].as<bool>();
+        }
+
+        if (node_["drawlabel"]) {
+            drawLabel_ = node_["drawlabel"].as<bool>();
+        }
+
         detectorThread_ = std::make_shared<DetectorThread>();
         if (!detectorThread_->Init(configPath)) {
             throw "detector Thread init error!";
         }
+        if (node_["shrinkratio"]) {
+            shrinkRatio_ = node_["shrinkratio"].as<float>();
+        }
+        
     }
 
     ~Impl() {
@@ -101,10 +112,10 @@ public:
                 return false;
             }
         }
-        if (inputframe.imageHeight != imageSize_ || inputframe.imageWidth != imageSize_) {
+        if (inputframe.imageHeight != imageSizeH_ || inputframe.imageWidth != imageSizeW_) {
             std::cout << "wrong image size, the image Height is " << inputframe.imageHeight;
             std::cout << ", the imageWidth is " << inputframe.imageWidth;
-            std::cout << "it should be: " << imageSize_ << "." << std::endl;
+            std::cout << "it should be: " << imageSizeH_ << " and " << imageSizeW_ << "." << std::endl;
             return false;
         }
         auto start1 = std::chrono::high_resolution_clock::now();
@@ -125,28 +136,48 @@ public:
         std::cout << "getºÄÊ±: " << elapsed.count() << " ºÁÃë" << std::endl;
 
         if (drawImage_) {
-            auto circle = resultFrameInside.circle;
-            cv::Point2f pointCenter(circle.circlePoint.x, circle.circlePoint.y);
-            cv::Size2f size(circle.size.width, circle.size.height);
-            cv::RotatedRect rect(pointCenter, size, circle.angle);
-            auto rect1 = rect;
-            rect1.size.width += 50 * 0.4 * 2;
-            rect1.size.height += 50 * 0.4 * 2;
-            unsigned char* point = static_cast<unsigned char*>(inputframe.buffer.get());
             auto cvImageType = inputframe.channelNum == 1 ? CV_8UC1 : CV_8UC3;
+            unsigned char* point = static_cast<unsigned char*>(inputframe.buffer.get());
             cv::Mat image(inputframe.imageHeight, inputframe.imageWidth, cvImageType, point);
-            cv::ellipse(image, rect, cv::Scalar(0, 50, 0), 2);
-            cv::ellipse(image, rect1, cv::Scalar(0, 100, 255), 2);
+            auto circle = resultFrameInside.circle;
+            if (circle.size.height != 0 && circle.size.width != 0) {
+                cv::Point2f pointCenter(circle.circlePoint.x, circle.circlePoint.y);
+                cv::Size2f size(circle.size.width, circle.size.height);
+                cv::RotatedRect rect(pointCenter, size, circle.angle);
+                auto rect1 = rect;
+                rect1.size.width += 50 * shrinkRatio_ * 2;
+                rect1.size.height += 50 * shrinkRatio_ * 2;
+                auto rect2 = rect;
+                rect2.size.width += -20 * shrinkRatio_ * 2;
+                rect2.size.height += -20 * shrinkRatio_ * 2;
+                auto rect3 = rect;
+                rect3.size.width += -175 * shrinkRatio_ * 2;
+                rect3.size.height += -175 * shrinkRatio_ * 2;
+                cv::ellipse(image, rect, cv::Scalar(0, 50, 0), 2);
+                cv::ellipse(image, rect1, cv::Scalar(0, 100, 255), 2);
+                cv::ellipse(image, rect2, cv::Scalar(0, 110, 255), 2);
+                cv::ellipse(image, rect3, cv::Scalar(0, 120, 255), 2);
+            }
+
+
             for (std::size_t i = 0; i < resultFrameInside.resultFrame.defects->size(); i++) {
                 auto defectName = resultFrameInside.resultFrame.defects->at(i).defectName;
-                std::string labelText = defectName + "_" + resultFrameInside.resultFrame.defects->at(i).objFocus + ":" + cv::format("%.3f", resultFrameInside.resultFrame.defects->at(i).objValue);
-                cv::Point textOrigin(resultFrameInside.resultFrame.defects->at(i).box.left, resultFrameInside.resultFrame.defects->at(i).box.top - 5);
-                cv::putText(image, labelText, textOrigin, cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 80, 0), 2);
+                std::string labelText = defectName;
+                if (resultFrameInside.resultFrame.defects->at(i).objFocus.size()) {
+                    labelText += "_" + resultFrameInside.resultFrame.defects->at(i).objFocus + ":" + cv::format("%.3f", resultFrameInside.resultFrame.defects->at(i).objValue);
+                }
+                if (drawLabel_) {
+                    cv::Point textOrigin(resultFrameInside.resultFrame.defects->at(i).box.left, resultFrameInside.resultFrame.defects->at(i).box.top - 5);
+                    cv::putText(image, labelText, textOrigin, cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 80, 0), 2);
+                }
                 cv::Point p1(resultFrameInside.resultFrame.defects->at(i).box.left, resultFrameInside.resultFrame.defects->at(i).box.top);
                 cv::Point p2(resultFrameInside.resultFrame.defects->at(i).box.right, resultFrameInside.resultFrame.defects->at(i).box.bottom);
-                //cv::rectangle(image, cv::Rect(p1, p2), cv::Scalar(128, 77, 207), 2);
-                cv::rectangle(image, cv::Rect(p1, p2), cv::Scalar(0, 80, 0), 2);
-
+                auto color = defectName == "corner" ? cv::Scalar(255, 255, 255) : cv::Scalar(0, 80, 0);
+                cv::rectangle(image, cv::Rect(p1, p2), color, 2);
+            }
+            if (!drawLabel_) {
+                std::string text = "Total Objects: " + std::to_string(resultFrameInside.resultFrame.numDefects);
+                cv::putText(image, text, cv::Point(30, 60), cv::FONT_HERSHEY_SIMPLEX, 1.5, cv::Scalar(255, 255, 255), 2);
             }
             start2 = std::chrono::high_resolution_clock::now();
             elapsed = start2 - start3;
@@ -162,8 +193,12 @@ private:
     std::shared_ptr<DetectorThread> detectorThread_;
     std::mutex processMutex_;
     std::string imageType_ = "rgb";
-    int imageSize_ = 1280;
+    int imageSizeH_ = 1280;
+    int imageSizeW_ = 1280;
+    float shrinkRatio_ = 0;
     bool drawImage_ = true;
+    bool drawLabel_ = true;
+    YAML::Node node_;
 
 };
 
