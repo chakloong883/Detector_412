@@ -63,3 +63,5 @@ void erosionDevice(const int& batchSize, unsigned char* src, int srcWidth, int s
 
 void dilationDevice(const int& batchSize, unsigned char* src, int srcWidth, int srcHeight,
     unsigned char* dst, int dstWidth, int dstHeight, int kernelSize);
+
+void decodeAnomalyDevice(int batchSize, float* src, unsigned char* dst, int dstWidth, int dstHeight, float thresHold);

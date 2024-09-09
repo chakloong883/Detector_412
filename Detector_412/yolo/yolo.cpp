@@ -67,7 +67,7 @@ yolo::YOLO::YOLO(std::string& configPath)
     
     
     CHECK(cudaMalloc(&m_input_resize_device, m_param.batch_size * 3 * m_param.dst_h * m_param.dst_w * sizeof(float)));
-    CHECK(cudaMalloc(&m_input_rgb_device,    m_param.batch_size * 3 * m_param.dst_h * m_param.dst_w * sizeof(float)));
+    CHECK(cudaMalloc(&m_input_rgb_device,    m_param.batch_size * 3 * m_param.src_h * m_param.src_w * sizeof(float)));
     CHECK(cudaMalloc(&m_input_norm_device,   m_param.batch_size * 3 * m_param.dst_h * m_param.dst_w * sizeof(float)));
     CHECK(cudaMalloc(&m_input_hwc_device,    m_param.batch_size * 3 * m_param.dst_h * m_param.dst_w * sizeof(float)));
 
@@ -274,8 +274,8 @@ void yolo::YOLO::gray_preprocess()
 
 void yolo::YOLO::gray_resize_preprocess()
 {
-    gray2rgbDevice(m_param.batch_size, m_input_src_device, m_param.dst_w, m_param.dst_h,
-        m_input_rgb_device, m_param.dst_w, m_param.dst_h);
+    gray2rgbDevice(m_param.batch_size, m_input_src_device, m_param.src_w, m_param.src_h,
+        m_input_rgb_device, m_param.src_w, m_param.src_h);
     resizeDevice(m_param.batch_size, m_input_rgb_device, m_param.src_w, m_param.src_h,
         m_input_resize_device, m_param.dst_w, m_param.dst_h, 114, m_dst2src);
     normDevice(m_param.batch_size, m_input_resize_device, m_param.dst_w, m_param.dst_h,

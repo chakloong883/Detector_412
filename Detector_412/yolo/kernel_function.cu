@@ -341,6 +341,7 @@ void binary_batch_device_kernel(const unsigned char* src, unsigned char* dst, in
 
 
 
+
 __global__
 void erosion_device_kernel_batch_device_kernel(const unsigned char* inputImage, unsigned char* outputImage, int width, int height, int batch_size, int kernelSize) {
 	int x = blockDim.x * blockIdx.x + threadIdx.x;
@@ -493,6 +494,23 @@ __global__ void hwc2chw_device_kernel(float* src, float* dst,
 		dst[dy * img_volume + dx] = src[dy * img_volume + dx_];
 	}
 }
+
+
+__global__
+void decode_anomaly_batch_kernel(int batch_size, float thresHold, float* src, unsigned char* dst, int imgVolume) {
+	int dx = blockDim.x * blockIdx.x + threadIdx.x;
+	int dy = blockDim.y * blockIdx.y + threadIdx.y;
+	if (dx < imgVolume && dy < batch_size)
+	{
+		if (src[dy * imgVolume + dx] > thresHold) {
+			dst[dy * imgVolume + dx] = 255;
+		}
+		else {
+			dst[dy * imgVolume + dx] = 0;
+		}
+	}
+}
+
 
 void resizeDevice(const int& batchSize, float* src, int srcWidth, int srcHeight,
 	float* dst, int dstWidth, int dstHeight,
@@ -925,6 +943,17 @@ void nmsDeviceV2(utils::InitParameter param, float* src, int srcWidth, int srcHe
 	nms_sort_kernel << < grid_size, block_size, 0, nullptr >> > (param.topK, param.batch_size, param.iou_thresh,
 		src, srcWidth, srcHeight, srcArea, idx);
 }
+
+void decodeAnomalyDevice(int batchSize, float* src, unsigned char* dst,int dstWidth, int dstHeight, float thresHold)
+{
+	dim3 block_size(BLOCK_SIZE, BLOCK_SIZE);
+	dim3 grid_size((dstWidth * dstHeight + BLOCK_SIZE - 1) / BLOCK_SIZE,
+		(batchSize + BLOCK_SIZE - 1) / BLOCK_SIZE);
+	int imgVolume = dstWidth * dstHeight;
+	decode_anomaly_batch_kernel << <grid_size, block_size, 0, nullptr >> > (batchSize, thresHold, src, dst, imgVolume);
+}
+
+
 
 void copyWithPaddingDevice(const int& batchSize, float* src, int srcWidth, int srcHeight,
 	float* dst, int dstWidth, int dstHeight, float paddingValue, int padTop, int padLeft)

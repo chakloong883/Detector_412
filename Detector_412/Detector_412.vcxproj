@@ -154,6 +154,7 @@
     <ClInclude Include="DetectorThread\detector_thread.h" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="pch.h" />
+    <ClInclude Include="yolo\anomaly_detection.h" />
     <ClInclude Include="yolo\common_include.h" />
     <CudaCompile Include="yolo\decode_yolov8.h">
       <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">-std=c++17 -Xcompiler "/std:c++17" --allow-unsupported-compiler %(AdditionalOptions)</AdditionalOptions>
@@ -175,6 +176,7 @@
     <ClCompile Include="DetectorThread\detector_thread.cpp" />
     <ClCompile Include="dllmain.cpp" />
     <ClCompile Include="pch.cpp" />
+    <ClCompile Include="yolo\anomaly_detection.cpp" />
     <ClCompile Include="yolo\utils.cpp" />
     <ClCompile Include="yolo\yolo.cpp" />
   </ItemGroup>

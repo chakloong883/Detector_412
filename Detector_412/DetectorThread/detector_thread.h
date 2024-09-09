@@ -9,6 +9,7 @@
 #include "../common/common_frame_inside.h"
 #include "../common/image_process.h"
 #include "../yolo/yolo.h"
+#include "../yolo/anomaly_detection.h"
 #include "../common/tools.h"
 #include "yaml-cpp/yaml.h"
 #include <map>
@@ -32,6 +33,7 @@ private:
 	int batchSize_ = 1;
 
 	std::shared_ptr<yolo::YOLO>  yolo_;
+	std::shared_ptr<AnomalyDetection> anmolyDetection_;
 	std::shared_ptr<tools::CopyImageToCuda> copyImageToCuda_;
 	std::shared_ptr<ImageProcess::DetectGeneralBatchImages> traditionalDetection_;
 	

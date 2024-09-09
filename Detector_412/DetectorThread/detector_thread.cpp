@@ -130,6 +130,11 @@ bool DetectorThread::postprocessFun() {
             if (node_["defect_filter"]){
                 tools::regularzation(resultFrame, node_);
             }
+            else {
+                if (resultFrame.resultFrame.defects->size()) {
+                    resultFrame.resultFrame.NG = true;
+                }
+            }
             std::lock_guard<std::mutex> lock(resultFrameMapMutex_);
             resultFrameMap_[uuid] = resultFrame;
             resultFrameMapCV_.notify_all();
@@ -191,6 +196,12 @@ bool DetectorThread::Init(std::string& configPath) {
             return false;
         }
     }
+    if (node_["anomaly_detection"]) {
+        batchSize_ = node_["anomaly_detection"]["batchsize"].as<int>();
+        anmolyDetection_ = std::make_shared<AnomalyDetection>(configPath);
+        anmolyDetection_->init();
+    }
+
     if (node_["tradition_detection"]) {
         batchSize_ = node_["tradition_detection"]["batchsize"].as<int>();
         if (node_["tradition_detection"]["method"]) {

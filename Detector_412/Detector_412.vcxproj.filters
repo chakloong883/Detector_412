@@ -63,6 +63,9 @@
     <ClInclude Include="common\tools.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="yolo\anomaly_detection.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="common\config_manager.cpp">
@@ -93,6 +96,9 @@
       <Filter>资源文件</Filter>
     </ClCompile>
     <ClCompile Include="common\tools.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="yolo\anomaly_detection.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>
