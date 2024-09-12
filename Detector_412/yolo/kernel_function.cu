@@ -500,14 +500,17 @@ __global__
 void decode_anomaly_batch_kernel(int batch_size, float thresHold, float* src, unsigned char* dst, int imgVolume) {
 	int dx = blockDim.x * blockIdx.x + threadIdx.x;
 	int dy = blockDim.y * blockIdx.y + threadIdx.y;
-	if (dx < imgVolume && dy < batch_size)
-	{
-		if (src[dy * imgVolume + dx] > thresHold) {
-			dst[dy * imgVolume + dx] = 255;
+
+	if (dx < imgVolume && dy < batch_size) {
+		int grayIndex = dy * imgVolume + dx;
+		//dst[grayIndex] = src[grayIndex];
+		if (src[grayIndex] > thresHold) {
+			dst[grayIndex] = 255;
 		}
 		else {
-			dst[dy * imgVolume + dx] = 0;
+			dst[grayIndex] = 0;
 		}
+		
 	}
 }
 

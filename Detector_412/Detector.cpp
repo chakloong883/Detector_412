@@ -55,6 +55,16 @@ public:
     Impl(std::string&configPath) {
         configManager_ = ConfigManager::GetInstance(configPath);
         node_ = configManager_->getConfig();
+        if (node_["anomaly_detection"]) {
+            if (node_["anomaly_detection"]["imagetype"]) {
+                imageType_ = node_["anomaly_detection"]["imagetype"].as<std::string>();
+            }
+            if (node_["anomaly_detection"]["imagesizeH"]) {
+                imageSizeH_ = node_["anomaly_detection"]["imagesizeH"].as<int>();
+                imageSizeW_ = node_["anomaly_detection"]["imagesizeW"].as<int>();
+            }
+
+        }
         if (node_["object_detection"]) {
             if (node_["object_detection"]["imagetype"]) {
                 imageType_ = node_["object_detection"]["imagetype"].as<std::string>();
@@ -94,7 +104,7 @@ public:
     }
 
     ~Impl() {
-        detectorThread_.reset();
+        //detectorThread_.reset();
     }
 
     bool process(ImageFrameInside& inputFrameInside, ResultFrameInside& resultFrameInside) {
@@ -168,11 +178,11 @@ public:
                 }
                 if (drawLabel_) {
                     cv::Point textOrigin(resultFrameInside.resultFrame.defects->at(i).box.left, resultFrameInside.resultFrame.defects->at(i).box.top - 5);
-                    cv::putText(image, labelText, textOrigin, cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 80, 0), 2);
+                    cv::putText(image, labelText, textOrigin, cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(150, 150, 150), 2);
                 }
                 cv::Point p1(resultFrameInside.resultFrame.defects->at(i).box.left, resultFrameInside.resultFrame.defects->at(i).box.top);
                 cv::Point p2(resultFrameInside.resultFrame.defects->at(i).box.right, resultFrameInside.resultFrame.defects->at(i).box.bottom);
-                auto color = defectName == "corner" ? cv::Scalar(255, 255, 255) : cv::Scalar(0, 80, 0);
+                auto color = defectName == "corner" ? cv::Scalar(255, 255, 255) : cv::Scalar(150, 150, 150);
                 cv::rectangle(image, cv::Rect(p1, p2), color, 2);
             }
             if (!drawLabel_) {

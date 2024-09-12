@@ -4,16 +4,13 @@ AnomalyDetection::AnomalyDetection(const std::string& configPath) {
     auto configManager = ConfigManager::GetInstance(configPath);
     auto node = configManager->getConfig();
     auto imageType = node["anomaly_detection"]["imagetype"].as<std::string>();
-
-
-    param_.iou_thresh = node["anomaly_detection"]["nmsthres"].as<float>();
     param_.conf_thresh = node["anomaly_detection"]["confidencethres"].as<float>();
     param_.dynamic_batch = node["anomaly_detection"]["dynamicbatch"].as<bool>();
     param_.batch_size = node["anomaly_detection"]["batchsize"].as<int>();
     param_.src_h = node["anomaly_detection"]["imagesizeH"].as<int>();
     param_.src_w = node["anomaly_detection"]["imagesizeW"].as<int>();
-    param_.dst_h = node["anomaly_detection"]["modelsize"].as<int>();
-    param_.dst_w = node["anomaly_detection"]["modelsize"].as<int>();
+    param_.dst_h = node["anomaly_detection"]["modelsizeH"].as<int>();
+    param_.dst_w = node["anomaly_detection"]["modelsizeW"].as<int>();
 
 
     if (imageType == "gray") {
@@ -37,21 +34,7 @@ AnomalyDetection::AnomalyDetection(const std::string& configPath) {
     }
 
     param_.model_path = configPath + node["anomaly_detection"]["modelpath"].as<std::string>();
-    param_.input_output_names = { "images",  "output0" };
-    auto labelFileName = node["anomaly_detection"]["labelfile"].as<std::string>();
-    auto labelFilePath = configPath + "/labels/" + labelFileName;
-    std::ifstream file(labelFilePath);
-    std::string line;
-    if (file.is_open()) {
-        while (std::getline(file, line)) {
-            param_.class_names.push_back(line);
-        }
-        file.close();
-    }
-    else {
-        // printf("unable to load label path:%s\n", labelFilePath.c_str());
-        throw("unable to load label path:%s\n", labelFilePath.c_str());
-    }
+    param_.input_output_names = { "input",  "output"};
 
     // input
     input_src_device_ = nullptr;
@@ -78,6 +61,7 @@ AnomalyDetection::~AnomalyDetection() {
     CHECK(cudaFree(input_hwc_device_));
     // output
     CHECK(cudaFree(output_src_device_));
+    CHECK(cudaFree(output_src_device1_));
     delete[] output_src_host_;
 }
 
@@ -116,23 +100,34 @@ bool AnomalyDetection::init()
         this->context_->setBindingDimensions(inputIndex, nvinfer1::Dims4(param_.batch_size, 3, param_.dst_h, param_.dst_w));
     }
     auto outputIndex = this->engine_->getBindingIndex("output");
-    output_dims_ = this->context_->getBindingDimensions(outputIndex);
-    totalObjects = output_dims_.d[1];
-    assert(param_.batch_size <= output_dims_.d[0]);
+    auto output_dims = this->context_->getBindingDimensions(outputIndex);
+    assert(param_.batch_size <= output_dims.d[0]);
     int outputArea = 1;
-    for (int i = 1; i < output_dims_.nbDims; i++)
+    for (int i = 1; i < output_dims.nbDims; i++)
     {
-        if (output_dims_.d[i] != 0)
+        if (output_dims.d[i] != 0)
         {
-            outputArea *= output_dims_.d[i];
+            outputArea *= output_dims.d[i];
         }
     }
-    maskH_ = output_dims_.d[2];
-    maskW_ = output_dims_.d[3];
-
+    maskH_ = output_dims.d[2];
+    maskW_ = output_dims.d[3];
     CHECK(cudaMalloc(&output_src_device_, param_.batch_size * outputArea * sizeof(float)));
-    CHECK(cudaMalloc(&output_src_mask_, param_.batch_size * outputArea * sizeof(unsigned char)));
-    output_src_host_ = new unsigned char[param_.batch_size * outputArea * sizeof(unsigned char)];
+    CHECK(cudaMalloc(&output_src_mask_, param_.batch_size * outputArea * sizeof(float)));
+    output_src_host_ = new unsigned char[param_.batch_size * outputArea * sizeof(float)];
+
+
+    auto output_dims1 = this->context_->getBindingDimensions(1);
+    int outputArea1 = 1;
+    for (int i = 0; i < output_dims1.nbDims; i++)
+    {
+        if (output_dims1.d[i] != 0)
+        {
+            outputArea1 *= output_dims1.d[i];
+        }
+    }
+    CHECK(cudaMalloc(&output_src_device1_, outputArea1 * sizeof(float)));
+
 
     float a = float(param_.dst_h) / param_.src_h;
     float b = float(param_.dst_w) / param_.src_w;
@@ -166,6 +161,30 @@ bool AnomalyDetection::init()
     mask2src_.v5 = mask2src.ptr<float>(1)[2];
     return true;
 }
+
+void AnomalyDetection::check()
+{
+    int idx;
+    nvinfer1::Dims dims;
+
+    sample::gLogInfo << "the engine's info:" << std::endl;
+    for (auto layer_name : param_.input_output_names)
+    {
+        idx = this->engine_->getBindingIndex(layer_name.c_str());
+        dims = this->engine_->getBindingDimensions(idx);
+        sample::gLogInfo << "idx = " << idx << ", " << layer_name << ": ";
+        for (int i = 0; i < dims.nbDims; i++)
+        {
+            sample::gLogInfo << dims.d[i] << ", ";
+        }
+        sample::gLogInfo << std::endl;
+    }
+}
+
+void AnomalyDetection::setInputData(std::shared_ptr<void>& data) {
+    input_src_device_ = static_cast<unsigned char*>(data.get());
+}
+
 
 void AnomalyDetection::registerPreprocessFun(std::function<void()> cb) {
     preprocess_fun_ = cb;
@@ -216,22 +235,44 @@ void AnomalyDetection::rgb_resize_preprocess()
 }
 
 
-void AnomalyDetection::post_process() {
-    decodeAnomalyDevice(param_.batch_size, output_src_device_, output_src_mask_, maskH_, maskW_, 0.5);
-    CHECK(cudaMemcpy(output_src_device_, output_src_host_, maskH_ * maskW_ * param_.batch_size * sizeof(float), cudaMemcpyDeviceToHost));
+void AnomalyDetection::postprocess() {
+    decodeAnomalyDevice(param_.batch_size, output_src_device_, output_src_mask_, maskH_, maskW_, param_.conf_thresh);
+    CHECK(cudaMemcpy(output_src_host_, output_src_mask_, param_.batch_size* maskH_* maskW_*sizeof(unsigned char), cudaMemcpyDeviceToHost));
     unsigned char* ptr = output_src_host_;
     for (std::size_t i = 0; i < param_.batch_size; i++) {
-        cv::Mat image(maskH_, maskW_, CV_8UC3, ptr);
+        cv::Mat image(maskH_, maskW_, CV_8UC1, ptr);
         std::vector<std::vector<cv::Point>> contours;
         cv::findContours(image, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
         for (std::size_t j = 0; j < contours.size(); j++) {
             cv::Rect boundingRect = cv::boundingRect(contours[j]);
-            float x_lt = dst2src_.v0 * boundingRect.tl().x + dst2src_.v1 * boundingRect.tl().y + dst2src_.v2;
-            float y_lt = dst2src_.v3 * boundingRect.tl().x + dst2src_.v4 * boundingRect.tl().y + dst2src_.v5;
-            float x_rb = dst2src_.v0 * boundingRect.br().x + dst2src_.v1 * boundingRect.br().y + dst2src_.v2;
-            float y_rb = dst2src_.v3 * boundingRect.br().x + dst2src_.v4 * boundingRect.br().y + dst2src_.v5;
+            float x_lt = mask2src_.v0 * boundingRect.tl().x + mask2src_.v1 * boundingRect.tl().y + mask2src_.v2;
+            float y_lt = mask2src_.v3 * boundingRect.tl().x + mask2src_.v4 * boundingRect.tl().y + mask2src_.v5;
+            float x_rb = mask2src_.v0 * boundingRect.br().x + mask2src_.v1 * boundingRect.br().y + mask2src_.v2;
+            float y_rb = mask2src_.v3 * boundingRect.br().x + mask2src_.v4 * boundingRect.br().y + mask2src_.v5;
             Box box(x_lt, y_lt, x_rb, y_rb, 1, 0);
             batchObjects_[i].push_back(Defect("yichang", box));
         }
+        ptr += int(maskH_) * int(maskW_) * sizeof(unsigned char);
+    }
+}
+
+
+bool AnomalyDetection::infer()
+{
+    float* bindings[] = { input_hwc_device_, output_src_device1_, output_src_device_ };
+    bool context = this->context_->executeV2((void**)bindings);
+    return context;
+}
+
+std::vector<std::vector<Defect>> AnomalyDetection::getObjectss() const {
+    return this->batchObjects_;
+}
+
+
+void AnomalyDetection::reset()
+{
+    for (size_t bi = 0; bi < param_.batch_size; bi++)
+    {
+        this->batchObjects_[bi].clear();
     }
 }

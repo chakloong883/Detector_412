@@ -40,7 +40,6 @@ struct ImagePos {
 
 struct BatchImageFrame {
 	std::shared_ptr<void> buffer;
-	std::shared_ptr<void> bufferCpu;
 	std::shared_ptr<std::vector<ImagePos>> imagesPos;
 	std::vector<std::string> batchuuid;
 	int imageWidth;

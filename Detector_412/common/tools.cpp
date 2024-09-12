@@ -5,21 +5,21 @@
 
 
 namespace tools {
-    void getCVBatchImages(std::vector<cv::Mat>& batchImages, BatchImageFramePtr frame) {
-        auto bufCpu = frame->bufferCpu;
-        auto batchSize = frame->batchSize;
-        auto imageWidth = frame->imageWidth;
-        auto imageHeight = frame->imageHeight;
-        auto imageChannel = frame->channelNum;
-        unsigned char* point = static_cast<unsigned char*>(bufCpu.get());
-        auto cvImageType = imageChannel == 1 ? CV_8UC1 : CV_8UC3;
-        for (int i = 0; i < batchSize; i++) {
-            cv::Mat image(imageHeight, imageWidth, cvImageType, point);
-            batchImages.push_back(image);
-            point += sizeof(unsigned char) * imageHeight * imageWidth * imageChannel;
-        }
-        return;
-    }
+    //void getCVBatchImages(std::vector<cv::Mat>& batchImages, BatchImageFramePtr frame) {
+    //    auto bufCpu = frame->bufferCpu;
+    //    auto batchSize = frame->batchSize;
+    //    auto imageWidth = frame->imageWidth;
+    //    auto imageHeight = frame->imageHeight;
+    //    auto imageChannel = frame->channelNum;
+    //    unsigned char* point = static_cast<unsigned char*>(bufCpu.get());
+    //    auto cvImageType = imageChannel == 1 ? CV_8UC1 : CV_8UC3;
+    //    for (int i = 0; i < batchSize; i++) {
+    //        cv::Mat image(imageHeight, imageWidth, cvImageType, point);
+    //        batchImages.push_back(image);
+    //        point += sizeof(unsigned char) * imageHeight * imageWidth * imageChannel;
+    //    }
+    //    return;
+    //}
 
     float calculateDistance(const Point& p1, const Point& p2) {
         float xDiff = p2.x - p1.x;
@@ -363,7 +363,7 @@ namespace tools {
     bool CopyImageToCuda::execute(){
         auto imageFrame = inputQueue_->Dequeue();
         if (!imageFrame) {
-            std::this_thread::sleep_for(std::chrono::microseconds(10));
+            //std::this_thread::sleep_for(std::chrono::microseconds(10));
             return false;
         }
         auto start1 = std::chrono::high_resolution_clock::now();
@@ -380,19 +380,16 @@ namespace tools {
             imagePos_.clear();
             CHECK(cudaMalloc(&data_, batchSize_ * bufferSize));
             dataCpu_ = new unsigned char[batchSize_ * bufferSize];
-            dataPointCpu_ = static_cast<unsigned char*>(dataCpu_);
             dataPoint_ = static_cast<unsigned char*>(data_);
         }
-        memcpy(dataPointCpu_, imageBuf.get(), bufferSize);
+        //memcpy(dataPointCpu_, imageBuf.get(), bufferSize);
         cudaMemcpy(dataPoint_, imageBuf.get(), bufferSize, cudaMemcpyHostToDevice);
         dataPoint_ += bufferSize;
-        dataPointCpu_ += bufferSize;
         batchuuid_.push_back(uuid);
         imagePos_.push_back({ 0,0,true });
         if (frameCount_ % batchSize_ == batchSize_ - 1) {
             BatchImageFramePtr batchImageFrame(new BatchImageFrame({
                     std::shared_ptr<void>(data_, [](void* p) {CHECK(cudaFree(p)); }),
-                    std::shared_ptr<void>(dataCpu_, [](void* p) {delete[]p; }),
                     std::make_shared<std::vector<ImagePos>>(imagePos_),
                     batchuuid_,
                     imageWidth,

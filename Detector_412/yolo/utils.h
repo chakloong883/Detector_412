@@ -90,7 +90,6 @@ namespace utils
         float scale{ 255.f };
         float means[3] = { 0.f, 0.f, 0.f };
         float stds[3] = { 1.f, 1.f, 1.f };
-
         float iou_thresh;
         float conf_thresh;
 

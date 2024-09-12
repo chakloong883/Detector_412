@@ -8,6 +8,9 @@
 #include "detector_thread.h"
 #include <cmath>
 
+
+
+
 DetectorThread::DetectorThread() {
     imageQueue_ = std::make_shared<ImageFrameQueue>(100);
     batchImageQueue_ = std::make_shared<BatchImageFrameQueue>(100);
@@ -16,7 +19,11 @@ DetectorThread::DetectorThread() {
 
 DetectorThread::~DetectorThread() {
     if (detectThread_.joinable()) {
-        detectThreadShouldExit_ = true;
+        {
+            std::lock_guard<std::mutex> lock(detectMutex_);
+            detectThreadShouldExit_ = true;
+        }
+        detectCV_.notify_all();
         detectThread_.join();
     }
     yolo_.reset();
@@ -30,6 +37,8 @@ bool DetectorThread::push(ImageFrameInside& frame) {
     }
     else {
         std::cout << "imageFrame add!, size: " << imageQueue_->size() << std::endl;
+        std::lock_guard<std::mutex> lock(this->detectMutex_);
+        this->detectCV_.notify_all();
     }
     return true;
 }
@@ -57,7 +66,6 @@ bool DetectorThread::detectFunc() {
     auto start1 = std::chrono::high_resolution_clock::now();
     auto batchuuid = (*batchImage)->batchuuid;
     auto buffer = (*batchImage)->buffer;
-    auto bufferCpu = (*batchImage)->bufferCpu;
     auto imagesPos = (*batchImage)->imagesPos;
     
     BatchResultFramePtr outputFrame(new BatchResultFrame({
@@ -66,7 +74,22 @@ bool DetectorThread::detectFunc() {
         std::make_shared<std::vector<Circle>>(),
         batchuuid
     }));
-    
+
+    if (anmolyDetection_) {
+        anmolyDetection_->setInputData(buffer);
+        utils::DeviceTimer d_t1; anmolyDetection_->preprocess();  float t1 = d_t1.getUsedTime();
+        utils::DeviceTimer d_t2; anmolyDetection_->infer();       float t2 = d_t2.getUsedTime();
+        utils::DeviceTimer d_t3; anmolyDetection_->postprocess(); float t3 = d_t3.getUsedTime();
+        sample::gLogInfo << "preprocess time = " << t1 / batchSize_ << "; "
+            "infer time = " << t2 / batchSize_ << "; "
+            "postprocess time = " << t3 / batchSize_ << std::endl;
+        auto batchDefects = anmolyDetection_->getObjectss();
+        for (std::size_t i = 0; i < outputFrame->batchDefects->size(); i++) {
+            outputFrame->batchDefects->at(i).insert(outputFrame->batchDefects->at(i).end(), batchDefects[i].begin(), batchDefects[i].end());
+        }
+        anmolyDetection_->reset();
+    }
+
     if (yolo_) {
         yolo_->setInputData(buffer);
         utils::DeviceTimer d_t1; yolo_->preprocess();  float t1 = d_t1.getUsedTime();
@@ -75,7 +98,11 @@ bool DetectorThread::detectFunc() {
         sample::gLogInfo << "preprocess time = " << t1 / batchSize_ << "; "
             "infer time = " << t2 / batchSize_ << "; "
             "postprocess time = " << t3 / batchSize_ << std::endl;
-        *(outputFrame->batchDefects) = yolo_->getObjectss();
+
+        auto batchDefects = yolo_->getObjectss();
+        for (std::size_t i = 0; i < outputFrame->batchDefects->size(); i++) {
+            outputFrame->batchDefects->at(i).insert(outputFrame->batchDefects->at(i).end(), batchDefects[i].begin(), batchDefects[i].end());
+        }
         yolo_->reset();
     }
 
@@ -147,7 +174,14 @@ bool DetectorThread::postprocessFun() {
 }
 
 void DetectorThread::detectThread() {
+    std::unique_lock<std::mutex> lock(this->detectMutex_);
     while (!detectThreadShouldExit_) {
+        std::cout << "进入wait" << std::endl;
+        this->detectCV_.wait(lock, [this] {return (imageQueue_->size() || detectThreadShouldExit_); });
+        if (detectThreadShouldExit_) {
+            break;
+        }
+        std::cout << "离开wait" << std::endl;
         if (!copyImageToCuda_->execute()) {
             continue;
         }
@@ -200,6 +234,7 @@ bool DetectorThread::Init(std::string& configPath) {
         batchSize_ = node_["anomaly_detection"]["batchsize"].as<int>();
         anmolyDetection_ = std::make_shared<AnomalyDetection>(configPath);
         anmolyDetection_->init();
+        anmolyDetection_->check();
     }
 
     if (node_["tradition_detection"]) {

@@ -15,8 +15,8 @@ yolo::YOLO::YOLO(std::string& configPath)
     m_param.batch_size = node["object_detection"]["batchsize"].as<int>();
     m_param.src_h = node["object_detection"]["imagesizeH"].as<int>();
     m_param.src_w = node["object_detection"]["imagesizeW"].as<int>();
-    m_param.dst_h = node["object_detection"]["modelsize"].as<int>();
-    m_param.dst_w = node["object_detection"]["modelsize"].as<int>();
+    m_param.dst_h = node["object_detection"]["modelsizeH"].as<int>();
+    m_param.dst_w = node["object_detection"]["modelsizeW"].as<int>();
 
 
     if (imageType == "gray") {

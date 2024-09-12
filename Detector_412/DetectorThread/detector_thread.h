@@ -11,6 +11,7 @@
 #include "../yolo/yolo.h"
 #include "../yolo/anomaly_detection.h"
 #include "../common/tools.h"
+#include "../common/ThreadPool.h"
 #include "yaml-cpp/yaml.h"
 #include <map>
 
@@ -31,7 +32,6 @@ private:
 	bool postprocessFun();
 	void detectThread();
 	int batchSize_ = 1;
-
 	std::shared_ptr<yolo::YOLO>  yolo_;
 	std::shared_ptr<AnomalyDetection> anmolyDetection_;
 	std::shared_ptr<tools::CopyImageToCuda> copyImageToCuda_;
@@ -39,12 +39,16 @@ private:
 	
 	std::thread detectThread_;
 	std::atomic<bool> detectThreadShouldExit_;
+	bool detectThreadShouldExit1_ = false;
 	ImageFrameQueuePtr imageQueue_;
 	BatchImageFrameQueuePtr batchImageQueue_;
 	BatchResultFrameQueuePtr batchResultQueue_;
 	std::map<std::string, ResultFrameInside> resultFrameMap_;
 	std::mutex resultFrameMapMutex_;
 	std::condition_variable resultFrameMapCV_;
+	std::mutex detectMutex_;
+	std::condition_variable detectCV_;
+
 	std::shared_ptr<ConfigManager> configManager_;
 	YAML::Node node_;
 	

@@ -7,7 +7,6 @@
 #include<cuda_runtime_api.h>
 
 namespace tools {
-    void getCVBatchImages(std::vector<cv::Mat>& batchImages, BatchImageFramePtr frame);
     float calculateDistance(const Point& p1, const Point& p2);
     double normalizeAngle(double angle);
     double calculateAngleDifference(double angle1, double angle2);
@@ -24,7 +23,6 @@ namespace tools {
         void* data_ = nullptr;
         void* dataCpu_ = nullptr;
         unsigned char* dataPoint_ = nullptr;
-        unsigned char* dataPointCpu_ = nullptr;
         int frameCount_ = 0;
         int batchSize_;
         ImageFrameQueuePtr inputQueue_;
