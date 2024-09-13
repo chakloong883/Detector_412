@@ -105,8 +105,8 @@ void ImageProcess::detectMaociBatchImages(std::vector<cv::Mat>& images, BatchRes
             int area = cv::contourArea(contours[j]);
             if (area > 500000 && area < 800000) {
                 rect = cv::fitEllipse(contours[j]);
-                rect.size.width += 5;
-                rect.size.height += 5;
+                //rect.size.width += 5;
+                //rect.size.height += 5;
                 maskEllipse = cv::Mat::zeros(image.size(), image.type());
                 cv::ellipse(maskEllipse, rect, cv::Scalar(255), -1);
                 auto rect1 = rect;
@@ -414,14 +414,14 @@ void ImageProcess::DetectMaociHuahenBatchImages::execute(BatchImageFramePtr inpu
         grayGpuBuf = grayDevice_;
         rgb2grayDevice(batchSize_, static_cast<unsigned char*>(gpuBuffer.get()), srcWidth_, srcHeight_, grayDevice_, dstWidth_, dstHeight_);
         binaryDevice(batchSize_, grayDevice_, srcWidth_, srcHeight_, binaryDevice_, dstWidth_, dstHeight_, inv_, thresHold1_);
-        erosionDevice(batchSize_, binaryDevice_, srcWidth_, srcHeight_, erodeDevice_, dstWidth_, dstHeight_, 5);
-        dilationDevice(batchSize_, erodeDevice_, srcWidth_, srcHeight_, dilateDevice_, dstWidth_, dstHeight_, 5);
+        erosionDevice(batchSize_, binaryDevice_, srcWidth_, srcHeight_, erodeDevice_, dstWidth_, dstHeight_, 10);
+        dilationDevice(batchSize_, erodeDevice_, srcWidth_, srcHeight_, dilateDevice_, dstWidth_, dstHeight_, 10);
     }
     else {
         grayGpuBuf = static_cast<unsigned char*>(gpuBuffer.get());
         binaryDevice(batchSize_, static_cast<unsigned char*>(gpuBuffer.get()), srcWidth_, srcHeight_, binaryDevice_, dstWidth_, dstHeight_, inv_, thresHold1_);
-        erosionDevice(batchSize_, binaryDevice_, srcWidth_, srcHeight_, erodeDevice_, dstWidth_, dstHeight_, 5);
-        dilationDevice(batchSize_, erodeDevice_, srcWidth_, srcHeight_, dilateDevice_, dstWidth_, dstHeight_, 5);
+        erosionDevice(batchSize_, binaryDevice_, srcWidth_, srcHeight_, erodeDevice_, dstWidth_, dstHeight_, 10);
+        dilationDevice(batchSize_, erodeDevice_, srcWidth_, srcHeight_, dilateDevice_, dstWidth_, dstHeight_, 10);
     }
     std::cout << "cuda 二值化开运算耗时:" << d1.getUsedTime() << std::endl;
     tools::DeviceTimer d2;

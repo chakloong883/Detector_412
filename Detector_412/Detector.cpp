@@ -93,8 +93,8 @@ public:
             if (node_["draw_setting"]["drawlabel"]) {
                 drawLabel_ = node_["draw_setting"]["drawlabel"].as<bool>();
             }
-            if (node_["draw_setting"]["drawtotaldefect"]) {
-                drawTotalDefects_ = node_["draw_setting"]["drawtotaldefect"].as<bool>();
+            if (node_["draw_setting"]["drawdefectsnum"]) {
+                drawDefectsNum_ = node_["draw_setting"]["drawdefectsnum"].as<bool>();
             }
             if (node_["draw_setting"]["drawcolor"]) {
                 if (node_["draw_setting"]["drawcolor"].IsSequence()) {
@@ -199,7 +199,7 @@ public:
                 cv::Point p2(resultFrameInside.resultFrame.defects->at(i).box.right, resultFrameInside.resultFrame.defects->at(i).box.bottom);
                 cv::rectangle(image, cv::Rect(p1, p2), drawColor_, 2);
             }
-            if (drawTotalDefects_) {
+            if (drawDefectsNum_) {
                 std::string text = "Total Objects: " + std::to_string(resultFrameInside.resultFrame.numDefects);
                 cv::putText(image, text, cv::Point(30, 60), cv::FONT_HERSHEY_SIMPLEX, 1.5, drawColor_, 2);
             }
@@ -222,7 +222,7 @@ private:
     float shrinkRatio_ = 0;
     bool drawImage_ = true;
     bool drawLabel_ = true;
-    bool drawTotalDefects_ = false;
+    bool drawDefectsNum_ = false;
     cv::Scalar drawColor_ = cv::Scalar(0, 150, 0);
     YAML::Node node_;
 
