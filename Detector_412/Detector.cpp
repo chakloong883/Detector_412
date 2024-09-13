@@ -85,12 +85,27 @@ public:
             }
 
         }
-        if (node_["drawimage"]) {
-            drawImage_ = node_["drawimage"].as<bool>();
-        }
 
-        if (node_["drawlabel"]) {
-            drawLabel_ = node_["drawlabel"].as<bool>();
+        if (node_["draw_setting"]) {
+            if (node_["draw_setting"]["drawimage"]) {
+                drawImage_ = node_["draw_setting"]["drawimage"].as<bool>();
+            }
+            if (node_["draw_setting"]["drawlabel"]) {
+                drawLabel_ = node_["draw_setting"]["drawlabel"].as<bool>();
+            }
+            if (node_["draw_setting"]["drawtotaldefect"]) {
+                drawTotalDefects_ = node_["draw_setting"]["drawtotaldefect"].as<bool>();
+            }
+            if (node_["draw_setting"]["drawcolor"]) {
+                if (node_["draw_setting"]["drawcolor"].IsSequence()) {
+                    if (node_["draw_setting"]["drawcolor"].size() == 3) {
+                        auto R = node_["draw_setting"]["drawcolor"][0].as<int>();
+                        auto G = node_["draw_setting"]["drawcolor"][1].as<int>();
+                        auto B = node_["draw_setting"]["drawcolor"][2].as<int>();
+                        drawColor_ = cv::Scalar(R, G, B);
+                    }
+                }
+            }
         }
 
         detectorThread_ = std::make_shared<DetectorThread>();
@@ -178,16 +193,15 @@ public:
                 }
                 if (drawLabel_) {
                     cv::Point textOrigin(resultFrameInside.resultFrame.defects->at(i).box.left, resultFrameInside.resultFrame.defects->at(i).box.top - 5);
-                    cv::putText(image, labelText, textOrigin, cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(150, 150, 150), 2);
+                    cv::putText(image, labelText, textOrigin, cv::FONT_HERSHEY_SIMPLEX, 0.5, drawColor_, 2);
                 }
                 cv::Point p1(resultFrameInside.resultFrame.defects->at(i).box.left, resultFrameInside.resultFrame.defects->at(i).box.top);
                 cv::Point p2(resultFrameInside.resultFrame.defects->at(i).box.right, resultFrameInside.resultFrame.defects->at(i).box.bottom);
-                auto color = defectName == "corner" ? cv::Scalar(255, 255, 255) : cv::Scalar(150, 150, 150);
-                cv::rectangle(image, cv::Rect(p1, p2), color, 2);
+                cv::rectangle(image, cv::Rect(p1, p2), drawColor_, 2);
             }
-            if (!drawLabel_) {
+            if (drawTotalDefects_) {
                 std::string text = "Total Objects: " + std::to_string(resultFrameInside.resultFrame.numDefects);
-                cv::putText(image, text, cv::Point(30, 60), cv::FONT_HERSHEY_SIMPLEX, 1.5, cv::Scalar(255, 255, 255), 2);
+                cv::putText(image, text, cv::Point(30, 60), cv::FONT_HERSHEY_SIMPLEX, 1.5, drawColor_, 2);
             }
             start2 = std::chrono::high_resolution_clock::now();
             elapsed = start2 - start3;
@@ -208,6 +222,8 @@ private:
     float shrinkRatio_ = 0;
     bool drawImage_ = true;
     bool drawLabel_ = true;
+    bool drawTotalDefects_ = false;
+    cv::Scalar drawColor_ = cv::Scalar(0, 150, 0);
     YAML::Node node_;
 
 };

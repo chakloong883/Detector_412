@@ -254,7 +254,7 @@ namespace tools {
                     continue;
                 }
                 else {
-                    keep = false;
+                    //keep = false;
                     if (defectFilter[defectName]["judge"] && defectFilter[defectName]["judge"].IsSequence()) {
                         for (const YAML::Node& item : defectFilter[defectName]["judge"]) {
                             float objValue = 0.0;
@@ -332,17 +332,17 @@ namespace tools {
                             else {
                                 auto NGStandard = item["NG"].as<std::string>();
                                 if (compare(NGStandard, objValue)) {
-                                    keep = true;
-                                    frame.resultFrame.NG = true;
+                                    //keep = true;
                                     NGStateMent << "The " << item["obj"].as<std::string>() << " of " << "the " << num << "th " << defectName << " " << NGStandard << ".";
                                     NGStateMent << "The " << item["obj"].as<std::string>() << " value is:" << objValue << std::endl;
-                                    num += 1;
                                     it->objFocus = objFocus;
                                     it->objValue = objValue;
                                     // TODO: ¿¼ÂÇ·ÅÉÏbreak
                                 }
                                 else {
-                                    continue;
+                                    keep = false;
+                                    //continue;
+                                    break;
                                 }
                             }
                         }
@@ -351,7 +351,11 @@ namespace tools {
                         it = defect->erase(it);
                         continue;
                     }
-                    ++it;
+                    else {
+                        ++it;
+                        frame.resultFrame.NG = true;
+                        num += 1;
+                    }
                 }
             }
 

@@ -176,12 +176,10 @@ bool DetectorThread::postprocessFun() {
 void DetectorThread::detectThread() {
     std::unique_lock<std::mutex> lock(this->detectMutex_);
     while (!detectThreadShouldExit_) {
-        std::cout << "进入wait" << std::endl;
         this->detectCV_.wait(lock, [this] {return (imageQueue_->size() || detectThreadShouldExit_); });
         if (detectThreadShouldExit_) {
             break;
         }
-        std::cout << "离开wait" << std::endl;
         if (!copyImageToCuda_->execute()) {
             continue;
         }
