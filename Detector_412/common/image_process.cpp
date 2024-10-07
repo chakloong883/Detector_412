@@ -612,12 +612,12 @@ void ImageProcess::DetectCornerBatchImages::execute(BatchImageFramePtr inputFram
     auto gpuBuffer = inputFrame->buffer;
     unsigned char* grayGpuBuf = nullptr;
     if (imageType_ == "rgb") {
-        grayGpuBuf = grayDevice_;
+        //grayGpuBuf = grayDevice_;
         rgb2grayDevice(batchSize_, static_cast<unsigned char*>(gpuBuffer.get()), srcWidth_, srcHeight_, grayDevice_, dstWidth_, dstHeight_);
         binaryDevice(batchSize_, grayDevice_, srcWidth_, srcHeight_, binaryDevice_, dstWidth_, dstHeight_, inv_, thresHold1_);
     }
     else {
-        grayGpuBuf = static_cast<unsigned char*>(gpuBuffer.get());
+        //grayGpuBuf = static_cast<unsigned char*>(gpuBuffer.get());
         binaryDevice(batchSize_, static_cast<unsigned char*>(gpuBuffer.get()), srcWidth_, srcHeight_, binaryDevice_, dstWidth_, dstHeight_, inv_, thresHold1_);
     }
     std::cout << "cuda 二值化运算耗时:" << d1.getUsedTime() << std::endl;
@@ -632,7 +632,7 @@ void ImageProcess::DetectCornerBatchImages::execute(BatchImageFramePtr inputFram
         cv::Mat image(inputFrame->imageHeight, inputFrame->imageWidth, CV_8UC1, bufCpuTemp);
         bufCpuTemp += sizeof(unsigned char) * inputFrame->imageHeight * inputFrame->imageWidth;
         std::vector<std::vector<cv::Point>> contours;
-        cv::findContours(image, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
+        cv::findContours(image, contours, cv::RETR_CCOMP, cv::CHAIN_APPROX_SIMPLE);
         for (std::size_t j = 0; j < contours.size(); j++) {
             cv::Rect boundingRect = cv::boundingRect(contours[j]);
             auto left = boundingRect.br().x;

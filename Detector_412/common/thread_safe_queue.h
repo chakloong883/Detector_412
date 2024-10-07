@@ -48,14 +48,14 @@ public:
     bool Enqueue(const T& item) {
         std::lock_guard<std::mutex> lock(mutex_);
 
-        if (queue_.size() < capacity_) {
+        //if (queue_.size() < capacity_) {
             queue_.push(item);
             // cond_.notify_one();
             return true;
-        }
+        /*}
         else {
             return false;
-        }
+        }*/
     }
 
 private:

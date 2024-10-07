@@ -20,10 +20,10 @@ DetectorThread::DetectorThread() {
 DetectorThread::~DetectorThread() {
     if (detectThread_.joinable()) {
         {
-            std::lock_guard<std::mutex> lock(detectMutex_);
+            //std::lock_guard<std::mutex> lock(detectMutex_);
             detectThreadShouldExit_ = true;
         }
-        detectCV_.notify_all();
+        //detectCV_.notify_all();
         detectThread_.join();
     }
     yolo_.reset();
@@ -37,8 +37,8 @@ bool DetectorThread::push(ImageFrameInside& frame) {
     }
     else {
         std::cout << "imageFrame add!, size: " << imageQueue_->size() << std::endl;
-        std::lock_guard<std::mutex> lock(this->detectMutex_);
-        this->detectCV_.notify_all();
+        //std::lock_guard<std::mutex> lock(this->detectMutex_);
+        //this->detectCV_.notify_all();
     }
     return true;
 }
@@ -111,11 +111,11 @@ bool DetectorThread::detectFunc() {
     }
     
     if (!batchResultQueue_->Enqueue(outputFrame)) {
-        std::cout << "queue full" << std::endl;
+        std::cout << "batchResultQueue full" << std::endl;
         return false;
     }
     else {
-        std::cout << "output queue add. new size: " << batchResultQueue_->size() << std::endl;
+        std::cout << "batchResultQueue add. new size: " << batchResultQueue_->size() << std::endl;
 
     }
     auto start2 = std::chrono::high_resolution_clock::now();
@@ -157,10 +157,8 @@ bool DetectorThread::postprocessFun() {
             if (node_["defect_filter"]){
                 tools::regularzation(resultFrame, node_);
             }
-            else {
-                if (resultFrame.resultFrame.defects->size()) {
-                    resultFrame.resultFrame.NG = true;
-                }
+            if (resultFrame.resultFrame.numDefects) {
+                resultFrame.resultFrame.NG = true;
             }
             std::lock_guard<std::mutex> lock(resultFrameMapMutex_);
             resultFrameMap_[uuid] = resultFrame;
@@ -174,9 +172,9 @@ bool DetectorThread::postprocessFun() {
 }
 
 void DetectorThread::detectThread() {
-    std::unique_lock<std::mutex> lock(this->detectMutex_);
+    //std::unique_lock<std::mutex> lock(this->detectMutex_);
     while (!detectThreadShouldExit_) {
-        this->detectCV_.wait(lock, [this] {return (imageQueue_->size() || detectThreadShouldExit_); });
+        //this->detectCV_.wait(lock, [this] {return (imageQueue_->size() || detectThreadShouldExit_); });
         if (detectThreadShouldExit_) {
             break;
         }

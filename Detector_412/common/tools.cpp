@@ -214,9 +214,21 @@ namespace tools {
         auto circle = frame.circle;
         std::stringstream NGStateMent;
         int num = 0;
+        auto defectFilter = config["defect_filter"];
+        if (defectFilter["defectsampling"]) {
+            if (defectFilter["defectsampling"]["ratio"]) {
+                auto defectSamplingRatio = defectFilter["defectsampling"]["ratio"].as<float>();
+                frame.resultFrame.numDefects = frame.resultFrame.numDefects * defectSamplingRatio;
+            }
+            if (defectFilter["defectsampling"]["singleedge"]) {
+                auto singleEdge = defectFilter["defectsampling"]["singleedge"].as<bool>();
+                frame.resultFrame.numDefects = sqrt(frame.resultFrame.numDefects);
+            }
+
+            return;
+        }
         for (auto it = defect->begin(); it != defect->end();) {
             auto defectName = it->defectName;
-            auto defectFilter = config["defect_filter"];
             if (!defectFilter[defectName]) {
                 std::cout << "规则未找到该缺陷表述：" << defectName << std::endl;
                 //TODO 消除注释
@@ -367,7 +379,7 @@ namespace tools {
     bool CopyImageToCuda::execute(){
         auto imageFrame = inputQueue_->Dequeue();
         if (!imageFrame) {
-            //std::this_thread::sleep_for(std::chrono::microseconds(10));
+            std::this_thread::sleep_for(std::chrono::microseconds(10));
             return false;
         }
         auto start1 = std::chrono::high_resolution_clock::now();
@@ -383,7 +395,7 @@ namespace tools {
             batchuuid_.clear();
             imagePos_.clear();
             CHECK(cudaMalloc(&data_, batchSize_ * bufferSize));
-            dataCpu_ = new unsigned char[batchSize_ * bufferSize];
+            //dataCpu_ = new unsigned char[batchSize_ * bufferSize];
             dataPoint_ = static_cast<unsigned char*>(data_);
         }
         //memcpy(dataPointCpu_, imageBuf.get(), bufferSize);

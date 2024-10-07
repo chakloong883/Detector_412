@@ -207,9 +207,6 @@ public:
             elapsed = start2 - start3;
             std::cout << "画图耗时: " << elapsed.count() << " 毫秒，" << "平均用时：" << elapsed.count() / resultFrameInside.resultFrame.defects->size() << "毫秒" << std::endl;
         }
-        //std::unique_lock<std::mutex> lock(processMutex_);
-        //std::cout << "processNum:" << processNum << std::endl;
-        //processNum += 1;
         return true;
     }
 private:
