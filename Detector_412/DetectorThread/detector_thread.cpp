@@ -20,10 +20,10 @@ DetectorThread::DetectorThread() {
 DetectorThread::~DetectorThread() {
     if (detectThread_.joinable()) {
         {
-            //std::lock_guard<std::mutex> lock(detectMutex_);
+            std::lock_guard<std::mutex> lock(detectMutex_);
             detectThreadShouldExit_ = true;
         }
-        //detectCV_.notify_all();
+        detectCV_.notify_all();
         detectThread_.join();
     }
     yolo_.reset();
@@ -37,8 +37,10 @@ bool DetectorThread::push(ImageFrameInside& frame) {
     }
     else {
         std::cout << "imageFrame add!, size: " << imageQueue_->size() << std::endl;
-        //std::lock_guard<std::mutex> lock(this->detectMutex_);
-        //this->detectCV_.notify_all();
+        {
+            std::lock_guard<std::mutex> lock(this->detectMutex_);
+        }
+        this->detectCV_.notify_all();
     }
     return true;
 }
@@ -172,9 +174,11 @@ bool DetectorThread::postprocessFun() {
 }
 
 void DetectorThread::detectThread() {
-    //std::unique_lock<std::mutex> lock(this->detectMutex_);
     while (!detectThreadShouldExit_) {
-        //this->detectCV_.wait(lock, [this] {return (imageQueue_->size() || detectThreadShouldExit_); });
+        {
+            std::unique_lock<std::mutex> lock(this->detectMutex_);
+            this->detectCV_.wait(lock, [this] {return (imageQueue_->size() || detectThreadShouldExit_); });
+        }
         if (detectThreadShouldExit_) {
             break;
         }
