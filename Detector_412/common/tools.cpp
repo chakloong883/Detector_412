@@ -209,7 +209,7 @@ namespace tools {
 
 
 
-    void regularzation(ResultFrameInside& frame, YAML::Node& config) {
+    void regularzation(ResultFrameInside& frame, YAML::Node& config, std::shared_ptr<spdlog::logger> logger) {
         auto defect = frame.resultFrame.defects;
         auto circle = frame.circle;
         std::stringstream NGStateMent;
@@ -230,7 +230,7 @@ namespace tools {
         for (auto it = defect->begin(); it != defect->end();) {
             auto defectName = it->defectName;
             if (!defectFilter[defectName]) {
-                std::cout << "规则未找到该缺陷表述：" << defectName << std::endl;
+                logger->error("规则未找到该缺陷表述: {}", defectName);
                 //TODO 消除注释
                 //++it;
                 //TODO 待删除
@@ -272,7 +272,7 @@ namespace tools {
                             float objValue = 0.0;
                             std::string objFocus = "";
                             if (!item["obj"]) {
-                                std::cout << "配置文件里有judge，找不到obj" << std::endl;
+                                logger->error("配置文件里有judge，找不到obj");
                                 continue;
                             }
                             else {
@@ -338,7 +338,7 @@ namespace tools {
 
                             }
                             if (!item["NG"]) {
-                                std::cout << "找不到NG标准" << std::endl;
+                                logger->error("找不到NG标准");
                                 continue;
                             }
                             else {
@@ -415,10 +415,10 @@ namespace tools {
                 }));
 
             if (!outputQueue_->Enqueue(batchImageFrame)) {
-                std::cout << "batchImageQueue full!" << std::endl;
+                logger_->error("batchImageQueue full!");
             }
             else {
-                std::cout << "batchImageQueue add. new size: " << outputQueue_->size() << std::endl;
+                logger_->info("batchImageQueue add. new size: {}", outputQueue_->size());
             }
             data_ = nullptr;
             dataPoint_ = nullptr;
@@ -426,7 +426,7 @@ namespace tools {
 
             auto start2 = std::chrono::high_resolution_clock::now();
             std::chrono::duration<double, std::milli> elapsed = start2 - start1;
-            std::cout << "拷贝线程耗时: " << elapsed.count() << " 毫秒" << std::endl;
+            logger_->info("拷贝线程耗时: {} ms", elapsed.count());
             return true;
         }
         else {

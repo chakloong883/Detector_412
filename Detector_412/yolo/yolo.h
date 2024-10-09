@@ -1,6 +1,7 @@
 #pragma once
 #include "../common/common_frame.h"
 #include "../common/config_manager.h"
+#include "../common/glog_manager.h"
 #include "common_include.h"
 #include "utils.h"
 #include "kernel_function.h"
@@ -38,6 +39,7 @@ namespace yolo
         std::unique_ptr<nvinfer1::IRuntime> m_runtime;
         std::shared_ptr<nvinfer1::ICudaEngine> m_engine;
         std::unique_ptr<nvinfer1::IExecutionContext> m_context;
+        std::shared_ptr<spdlog::logger> logger_;
 
     protected:
         utils::InitParameter m_param;

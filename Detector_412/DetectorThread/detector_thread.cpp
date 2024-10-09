@@ -9,8 +9,6 @@
 #include <cmath>
 
 
-
-
 DetectorThread::DetectorThread() {
     imageQueue_ = std::make_shared<ImageFrameQueue>(100);
     batchImageQueue_ = std::make_shared<BatchImageFrameQueue>(100);
@@ -32,11 +30,11 @@ DetectorThread::~DetectorThread() {
 
 bool DetectorThread::push(ImageFrameInside& frame) {
     if (!imageQueue_->Enqueue(std::make_shared<ImageFrameInside>(frame))) {
-        std::cout << "image queue full!" << std::endl;
+        logger_->error("image queue full!");
         return false;
     }
     else {
-        std::cout << "imageFrame add!, size: " << imageQueue_->size() << std::endl;
+        logger_->info("imageFrame add!, size: {}", imageQueue_->size());
         {
             std::lock_guard<std::mutex> lock(this->detectMutex_);
         }
@@ -77,19 +75,18 @@ bool DetectorThread::detectFunc() {
         batchuuid
     }));
 
-    if (anmolyDetection_) {
-        anmolyDetection_->setInputData(buffer);
-        utils::DeviceTimer d_t1; anmolyDetection_->preprocess();  float t1 = d_t1.getUsedTime();
-        utils::DeviceTimer d_t2; anmolyDetection_->infer();       float t2 = d_t2.getUsedTime();
-        utils::DeviceTimer d_t3; anmolyDetection_->postprocess(); float t3 = d_t3.getUsedTime();
-        sample::gLogInfo << "preprocess time = " << t1 / batchSize_ << "; "
-            "infer time = " << t2 / batchSize_ << "; "
-            "postprocess time = " << t3 / batchSize_ << std::endl;
-        auto batchDefects = anmolyDetection_->getObjectss();
+    if (anomalyDetection_) {
+        anomalyDetection_->setInputData(buffer);
+        utils::DeviceTimer d_t1; anomalyDetection_->preprocess();  float t1 = d_t1.getUsedTime();
+        utils::DeviceTimer d_t2; anomalyDetection_->infer();       float t2 = d_t2.getUsedTime();
+        utils::DeviceTimer d_t3; anomalyDetection_->postprocess(); float t3 = d_t3.getUsedTime();
+        logger_->info("anomaly detection:");
+        logger_->info("preprocess time = {}, infer time = {}, postprocess time = {}", t1 / batchSize_, t2 / batchSize_, t3 / batchSize_);
+        auto batchDefects = anomalyDetection_->getObjectss();
         for (std::size_t i = 0; i < outputFrame->batchDefects->size(); i++) {
             outputFrame->batchDefects->at(i).insert(outputFrame->batchDefects->at(i).end(), batchDefects[i].begin(), batchDefects[i].end());
         }
-        anmolyDetection_->reset();
+        anomalyDetection_->reset();
     }
 
     if (yolo_) {
@@ -97,9 +94,8 @@ bool DetectorThread::detectFunc() {
         utils::DeviceTimer d_t1; yolo_->preprocess();  float t1 = d_t1.getUsedTime();
         utils::DeviceTimer d_t2; yolo_->infer();       float t2 = d_t2.getUsedTime();
         utils::DeviceTimer d_t3; yolo_->postprocess(static_cast<size_t>(batchSize_)); float t3 = d_t3.getUsedTime();
-        sample::gLogInfo << "preprocess time = " << t1 / batchSize_ << "; "
-            "infer time = " << t2 / batchSize_ << "; "
-            "postprocess time = " << t3 / batchSize_ << std::endl;
+        logger_->info("yolo detection:");
+        logger_->info("preprocess time = {}, infer time = {}, postprocess time = {}", t1 / batchSize_, t2 / batchSize_, t3 / batchSize_);
 
         auto batchDefects = yolo_->getObjectss();
         for (std::size_t i = 0; i < outputFrame->batchDefects->size(); i++) {
@@ -113,16 +109,16 @@ bool DetectorThread::detectFunc() {
     }
     
     if (!batchResultQueue_->Enqueue(outputFrame)) {
-        std::cout << "batchResultQueue full" << std::endl;
+        logger_->error("batchResultQueue full");
         return false;
     }
     else {
-        std::cout << "batchResultQueue add. new size: " << batchResultQueue_->size() << std::endl;
+        logger_->info("batchResultQueue add. new size: {}", batchResultQueue_->size());
 
     }
     auto start2 = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double, std::milli> elapsed = start2 - start1;
-    std::cout << "检测线程耗时: " << elapsed.count() << " 毫秒" << std::endl;
+    logger_->info("检测线程耗时:{} 毫秒", elapsed.count());
     return true;
 }
 
@@ -157,7 +153,7 @@ bool DetectorThread::postprocessFun() {
             ResultFrameInside resultFrame({ { std::make_shared<std::vector<Defect>>(defects), defects.size(), false, ""}, circle, uuid});
             cv::Mat image;
             if (node_["defect_filter"]){
-                tools::regularzation(resultFrame, node_);
+                tools::regularzation(resultFrame, node_, logger_);
             }
             if (resultFrame.resultFrame.numDefects) {
                 resultFrame.resultFrame.NG = true;
@@ -169,7 +165,7 @@ bool DetectorThread::postprocessFun() {
     }
     auto start2 = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double, std::milli> elapsed = start2 - start1;
-    std::cout << "后处理线程耗时: " << elapsed.count() << " 毫秒" << std::endl;
+    logger_->info("后处理线程耗时: {} 毫秒", elapsed.count());
     return true;
 }
 
@@ -201,16 +197,16 @@ bool DetectorThread::createObjectDetection(std::string& configPath) {
             yolo_ = std::make_shared<yolo::YOLO>(configPath);
         }
         else if (*iterPoint == "yolov8") {
-            std::cout << "yolov8 use!" << std::endl;
+            logger_->info("yolov8 use!");
             yolo_ = std::make_shared<yolo::YOLOV8>(configPath);
         }
     }
     else {
-        std::cout << "object detector use error, detector name:" << objectDetectorUse << std::endl;
+        logger_->error("object detector use error, detector name: {}", objectDetectorUse);
         return false;
     }
     if (!yolo_->init()) {
-        sample::gLogError << "initEngine() ocur errors!" << std::endl;
+        logger_->error("initEngine() ocur errors!");
         return false;
     }
     yolo_->check();
@@ -222,19 +218,26 @@ bool DetectorThread::createObjectDetection(std::string& configPath) {
 bool DetectorThread::Init(std::string& configPath) {
     configManager_ = ConfigManager::GetInstance(configPath);
     node_ = configManager_->getConfig();
-    //this->registerTraditionFun(std::bind(&ImageProcess::detectGeneral, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5));
+    auto logManager = GlogManager::GetInstance(configPath);
+    logger_ = logManager->getLogger();
+    if (!logger_) {
+        std::cout << "日志记录器获取失败！" << std::endl;
+        return false;
+    }
     if (node_["object_detection"]) {
         batchSize_ = node_["object_detection"]["batchsize"].as<int>();
         if (!createObjectDetection(configPath)) {
-            std::cout << "create detector failed!" << std::endl;
+            logger_->error("create detector failed!");
             return false;
         }
     }
     if (node_["anomaly_detection"]) {
         batchSize_ = node_["anomaly_detection"]["batchsize"].as<int>();
-        anmolyDetection_ = std::make_shared<AnomalyDetection>(configPath);
-        anmolyDetection_->init();
-        anmolyDetection_->check();
+        anomalyDetection_ = std::make_shared<AnomalyDetection>(configPath);
+        if (!anomalyDetection_->init()) {
+            logger_->error("anomalydetection init failed!");
+        }
+        anomalyDetection_->check();
     }
 
     if (node_["tradition_detection"]) {
@@ -242,7 +245,6 @@ bool DetectorThread::Init(std::string& configPath) {
         if (node_["tradition_detection"]["method"]) {
             needTraditionDetection_ = true;
             if (node_["tradition_detection"]["method"].as<std::string>() == "detectmaociyijiaohuahen") {
-                //this->registerTraditionFun(std::bind(&ImageProcess::detectMaociBatchImages, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5));
                 traditionalDetection_ = std::make_shared<ImageProcess::DetectMaociHuahenBatchImages>(configPath);
             }
             else if (node_["tradition_detection"]["method"].as<std::string>() == "general"){
@@ -252,17 +254,8 @@ bool DetectorThread::Init(std::string& configPath) {
                 traditionalDetection_ = std::make_shared<ImageProcess::DetectCornerBatchImages>(configPath);
             }
         }
-        //if (node_["tradition_detection"]["thresholdvalue1"]) {
-        //    thresholdValue1_ = node_["tradition_detection"]["thresholdvalue1"].as<int>();
-        //}
-        //if (node_["tradition_detection"]["thresholdvalue2"]) {
-        //    thresholdValue2_ = node_["tradition_detection"]["thresholdvalue2"].as<int>();
-        //}
-        //if (node_["tradition_detection"]["inv"]) {
-        //    inv_ = node_["tradition_detection"]["inv"].as<bool>();
-        //}
     }
-    copyImageToCuda_ = std::make_shared<tools::CopyImageToCuda>(batchSize_, imageQueue_, batchImageQueue_);
+    copyImageToCuda_ = std::make_shared<tools::CopyImageToCuda>(batchSize_, imageQueue_, batchImageQueue_, logger_);
     assert(!detectThread_.joinable());
     detectThread_ = std::thread(&DetectorThread::detectThread, this);
     return true;

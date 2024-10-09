@@ -4,12 +4,11 @@
 #include "config_manager.h"
 #include <cuda_runtime_api.h>
 #include "../yolo/kernel_function.h"
+#include "../common/glog_manager.h"
 
 
 namespace ImageProcess {
     void cropImage(cv::Mat& img, std::vector<ImagePos>& imagePos, int& cropHeight, int& cropWidth, float& overLap);
-    void detectMaociBatchImages(std::vector<cv::Mat>& images, BatchResultFramePtr outputframe, int thresholdValue1, int thresholdValue2, bool inv);
-    void detectGeneral(std::vector<cv::Mat>& images, BatchResultFramePtr outputframe, int thresholdValue1, int thresholdValue2, bool inv = true);
 
     class DetectGeneralBatchImages {
     public:
@@ -32,6 +31,8 @@ namespace ImageProcess {
 
         bool inv_;
         std::string imageType_;
+        std::shared_ptr<spdlog::logger> logger_;
+
 
     };
 

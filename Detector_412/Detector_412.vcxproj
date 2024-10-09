@@ -70,6 +70,7 @@
     <Import Project="OpenCV4_Debug_X64.props" />
     <Import Project="Tensorrt8_X64.props" />
     <Import Project="YAMLCPP_X64.props" />
+    <Import Project="Spdlog_X64.props" />
   </ImportGroup>
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
@@ -77,6 +78,7 @@
     <Import Project="OpenCV4_Release_X64.props" />
     <Import Project="Tensorrt8_X64.props" />
     <Import Project="YAMLCPP_X64_Release.props" />
+    <Import Project="Spdlog_X64.props" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
@@ -111,7 +113,7 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>_DEBUG;_CONSOLE;NOMINMAX;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_DEBUG;_CONSOLE;NOMINMAX;GLOG_USE_GLOG_EXPORT;GLOG_NO_ABBREVIATED_SEVERITIES;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
@@ -129,7 +131,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>NDEBUG;_CONSOLE;NOMINMAX;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>NDEBUG;_CONSOLE;NOMINMAX;GLOG_USE_GLOG_EXPORT;GLOG_NO_ABBREVIATED_SEVERITIES;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
@@ -145,6 +147,7 @@
     <ClInclude Include="common\common_frame_inside.h" />
     <ClInclude Include="common\common_queue.h" />
     <ClInclude Include="common\config_manager.h" />
+    <ClInclude Include="common\glog_manager.h" />
     <ClInclude Include="common\image_process.h" />
     <ClInclude Include="common\queue_splitter.h" />
     <ClInclude Include="common\ThreadPool.h" />
@@ -168,6 +171,7 @@
   <ItemGroup>
     <ClCompile Include="..\..\..\..\3rdParty\TensorRT-8.6.1.6\samples\common\logger.cpp" />
     <ClCompile Include="common\config_manager.cpp" />
+    <ClCompile Include="common\glog_manager.cpp" />
     <ClCompile Include="common\image_process.cpp" />
     <ClCompile Include="common\tools.cpp" />
     <ClCompile Include="Detector.cpp">

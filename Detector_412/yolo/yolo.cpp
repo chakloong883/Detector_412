@@ -4,6 +4,8 @@
 yolo::YOLO::YOLO(std::string& configPath)
 {
     auto configManager = ConfigManager::GetInstance(configPath);
+    auto logManager = GlogManager::GetInstance(configPath);
+    logger_ = logManager->getLogger();
     auto node = configManager->getConfig();
     auto imageType = node["object_detection"]["imagetype"].as<std::string>();
 
@@ -104,7 +106,7 @@ yolo::YOLO::~YOLO()
 
 bool yolo::YOLO::init()
 {
-    std::cout << "model_path:" << m_param.model_path << std::endl;
+    logger_->info("model_path: {}", m_param.model_path);
 	std::vector<unsigned char> trt_file = utils::loadModel(m_param.model_path);
     if (trt_file.empty())
     {
@@ -168,30 +170,31 @@ void yolo::YOLO::check()
     int idx;
     nvinfer1::Dims dims;
 
-    sample::gLogInfo << "the engine's info:" << std::endl;
+    logger_->info("the engine's info:");
     for (auto layer_name : m_param.input_output_names)
     {
         idx = this->m_engine->getBindingIndex(layer_name.c_str());
         dims = this->m_engine->getBindingDimensions(idx);
-        sample::gLogInfo << "idx = " << idx << ", " << layer_name << ": ";
+        logger_->info("idx = {}, {} :", idx, layer_name);
+        std::stringstream ss;
         for (int i = 0; i < dims.nbDims; i++)
         {
-            sample::gLogInfo << dims.d[i] << ", ";
+            ss << dims.d[i] << ", ";
         }
-        sample::gLogInfo << std::endl;
+        logger_->info(ss.str());
     }
-    sample::gLogInfo << "the context's info:" << std::endl;
-    for (auto layer_name : m_param.input_output_names)
-    {
-        idx = this->m_engine->getBindingIndex(layer_name.c_str());
-        dims = this->m_context->getBindingDimensions(idx);
-        sample::gLogInfo << "idx = " << idx << ", " << layer_name << ": ";
-        for (int i = 0; i < dims.nbDims; i++)
-        {
-            sample::gLogInfo << dims.d[i] << ", ";
-        }
-        sample::gLogInfo << std::endl;
-    }
+    //sample::gLogInfo << "the context's info:" << std::endl;
+    //for (auto layer_name : m_param.input_output_names)
+    //{
+    //    idx = this->m_engine->getBindingIndex(layer_name.c_str());
+    //    dims = this->m_context->getBindingDimensions(idx);
+    //    sample::gLogInfo << "idx = " << idx << ", " << layer_name << ": ";
+    //    for (int i = 0; i < dims.nbDims; i++)
+    //    {
+    //        sample::gLogInfo << dims.d[i] << ", ";
+    //    }
+    //    sample::gLogInfo << std::endl;
+    //}
 }
 void yolo::YOLO::copy(const std::vector<cv::Mat>& imgsBatch)
 {
@@ -371,7 +374,7 @@ yolo::YOLOV8::~YOLOV8() {
 
 
 bool yolo::YOLOV8::init() {
-    std::cout << "model_path:" << m_param.model_path << std::endl;
+    logger_->info("model path: {}", m_param.model_path);
     std::vector<unsigned char> trt_file = utils::loadModel(m_param.model_path);
     if (trt_file.empty())
     {

@@ -29,5 +29,6 @@ std::shared_ptr<ConfigManager> ConfigManager::GetInstance(const std::string& con
 }
 
 YAML::Node ConfigManager::getConfig() {
+    std::lock_guard<std::mutex> lock(configMutex_); // 线程安全
     return node_;
 }

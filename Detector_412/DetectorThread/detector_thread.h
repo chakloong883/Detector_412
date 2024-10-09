@@ -12,9 +12,9 @@
 #include "../yolo/anomaly_detection.h"
 #include "../common/tools.h"
 #include "../common/ThreadPool.h"
+#include "../common/glog_manager.h"
 #include "yaml-cpp/yaml.h"
 #include <map>
-
 
 class DetectorThread {
 public:
@@ -33,7 +33,7 @@ private:
 	void detectThread();
 	int batchSize_ = 1;
 	std::shared_ptr<yolo::YOLO>  yolo_;
-	std::shared_ptr<AnomalyDetection> anmolyDetection_;
+	std::shared_ptr<AnomalyDetection> anomalyDetection_;
 	std::shared_ptr<tools::CopyImageToCuda> copyImageToCuda_;
 	std::shared_ptr<ImageProcess::DetectGeneralBatchImages> traditionalDetection_;
 	
@@ -51,6 +51,8 @@ private:
 
 	std::shared_ptr<ConfigManager> configManager_;
 	YAML::Node node_;
+	std::shared_ptr<spdlog::logger> logger_;
+
 	
 	// ´ýÉ¾³ý
 	bool needObjectDetection_ = true;

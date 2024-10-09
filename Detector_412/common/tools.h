@@ -2,6 +2,7 @@
 #include "common_frame.h"
 #include "common_queue.h"
 #include "yaml-cpp/yaml.h"
+#include "glog_manager.h"
 #include "opencv2/opencv.hpp"
 #include<cuda_runtime.h>
 #include<cuda_runtime_api.h>
@@ -12,10 +13,10 @@ namespace tools {
     double calculateAngleDifference(double angle1, double angle2);
     void shrinkFilter(Defect& defect, Circle& circle, float& shrink, float& shrinkRatio, bool& keep, float& distanceBias);
     bool compare(const std::string& condition, float a);
-    void regularzation(ResultFrameInside& frame, YAML::Node& config);
+    void regularzation(ResultFrameInside& frame, YAML::Node& config, std::shared_ptr<spdlog::logger> logger);
     class CopyImageToCuda {
     public:
-        CopyImageToCuda(int batchSize, ImageFrameQueuePtr inputQueue, BatchImageFrameQueuePtr outputQueue) :batchSize_(batchSize), inputQueue_(inputQueue), outputQueue_(outputQueue){}
+        CopyImageToCuda(int batchSize, ImageFrameQueuePtr inputQueue, BatchImageFrameQueuePtr outputQueue, std::shared_ptr<spdlog::logger> logger) :batchSize_(batchSize), inputQueue_(inputQueue), outputQueue_(outputQueue), logger_(logger){}
         bool execute();
     private:
         std::vector<ImagePos> imagePos_;
@@ -27,6 +28,7 @@ namespace tools {
         int batchSize_;
         ImageFrameQueuePtr inputQueue_;
         BatchImageFrameQueuePtr outputQueue_;
+        std::shared_ptr<spdlog::logger> logger_;
     };
 
     double distance(const Point& p1, const Point& p2);

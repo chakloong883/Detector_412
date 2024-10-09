@@ -6,8 +6,10 @@
 #include <future>
 #include "DetectorThread/detector_thread.h"
 #include "common/config_manager.h"
+#include "common/glog_manager.h"
 
-
+#include "spdlog/spdlog.h"
+#include "spdlog/sinks/basic_file_sink.h" // 包含文件日志sink
 //Detector* Detector::instance{ nullptr };
 //std::mutex Detector::mutex_;
 
@@ -15,6 +17,9 @@ static int processNum = 0;
 
 #include <random>
 #include <sstream>
+
+
+
 
 namespace uuid {
     static std::random_device              rd;
@@ -54,6 +59,8 @@ struct Detector::Impl {
 public:
     Impl(std::string&configPath) {
         configManager_ = ConfigManager::GetInstance(configPath);
+        auto logManager = GlogManager::GetInstance(configPath);
+        logger_ = logManager->getLogger();
         node_ = configManager_->getConfig();
         if (node_["anomaly_detection"]) {
             if (node_["anomaly_detection"]["imagetype"]) {
@@ -119,7 +126,6 @@ public:
     }
 
     ~Impl() {
-        //detectorThread_.reset();
     }
 
     bool process(ImageFrameInside& inputFrameInside, ResultFrameInside& resultFrameInside) {
@@ -127,38 +133,37 @@ public:
         auto uuid = inputFrameInside.uuid;
         if (imageType_ == "rgb") {
             if (inputframe.channelNum != 3) {
-                std::cout << "wrong channel num!, the imageType is " << imageType_ << ", the channel num is:" << inputframe.channelNum << std::endl;
+                logger_->error("wrong channel num!, the imageType is {}, the channel num is {}", imageType_, inputframe.channelNum);
                 return false;
             }
         }
         else if (imageType_ == "gray") {
             if (inputframe.channelNum != 1) {
-                std::cout << "wrong channel num!, the imageType is " << imageType_ << ", the channel num is:" << inputframe.channelNum << std::endl;
+                logger_->error("wrong channel num!, the imageType is {}, the channel num is {}", imageType_, inputframe.channelNum);
+
                 return false;
             }
         }
         if (inputframe.imageHeight != imageSizeH_ || inputframe.imageWidth != imageSizeW_) {
-            std::cout << "wrong image size, the image Height is " << inputframe.imageHeight;
-            std::cout << ", the imageWidth is " << inputframe.imageWidth;
-            std::cout << "it should be: " << imageSizeH_ << " and " << imageSizeW_ << "." << std::endl;
+            logger_->error("wrong image size, the image Height is  {}, the image Width is {}, it should be {} and {}", inputframe.imageHeight, inputframe.imageWidth, imageSizeH_, imageSizeW_);
             return false;
         }
         auto start1 = std::chrono::high_resolution_clock::now();
         if (!detectorThread_->push(inputFrameInside)) {
-            std::cout << "the input queue full!" << std::endl;
+            logger_->error("the input queue full!");
             return false;
         }
         auto start2 = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double, std::milli> elapsed = start2 - start1;
-        std::cout << "push耗时: " << elapsed.count() << " 毫秒" << std::endl;
+        logger_->info("push耗时: {} 毫秒", elapsed.count());
 
         if (!detectorThread_->get(resultFrameInside, uuid)) {
-            std::cout << "can't get the result frame!" << std::endl;
+            logger_->error("can't get the result frame!");
             return false;
         }
         auto start3 = std::chrono::high_resolution_clock::now();
         elapsed = start3 - start2;
-        std::cout << "get耗时: " << elapsed.count() << " 毫秒" << std::endl;
+        logger_->info("get耗时: {} 毫秒", elapsed.count());
 
         if (drawImage_) {
             auto cvImageType = inputframe.channelNum == 1 ? CV_8UC1 : CV_8UC3;
@@ -205,12 +210,13 @@ public:
             }
             start2 = std::chrono::high_resolution_clock::now();
             elapsed = start2 - start3;
-            std::cout << "画图耗时: " << elapsed.count() << " 毫秒，" << "平均用时：" << elapsed.count() / resultFrameInside.resultFrame.defects->size() << "毫秒" << std::endl;
+            logger_->info("画图耗时: {} 毫秒", elapsed.count());
         }
         return true;
     }
 private:
     std::shared_ptr<ConfigManager> configManager_;
+    std::shared_ptr<spdlog::logger> logger_;
     std::shared_ptr<DetectorThread> detectorThread_;
     std::mutex processMutex_;
     std::string imageType_ = "rgb";
@@ -233,7 +239,6 @@ Detector::Detector(std::string& configPath) {
 
 Detector::~Detector() {
     pimpl->~Impl();
-    std::cout << "析构成功" << std::endl;
 }
 
 

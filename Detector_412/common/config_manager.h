@@ -8,6 +8,7 @@ class ConfigManager
 private:
     static std::map<std::string, std::shared_ptr<ConfigManager>> instances_;
     static std::mutex mutex_;
+    std::mutex configMutex_;
     ConfigManager(const std::string& configPath);
     YAML::Node node_;
 
