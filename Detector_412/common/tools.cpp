@@ -266,7 +266,7 @@ namespace tools {
                     continue;
                 }
                 else {
-                    //keep = false;
+                    keep = false;
                     if (defectFilter[defectName]["judge"] && defectFilter[defectName]["judge"].IsSequence()) {
                         for (const YAML::Node& item : defectFilter[defectName]["judge"]) {
                             float objValue = 0.0;
@@ -344,17 +344,18 @@ namespace tools {
                             else {
                                 auto NGStandard = item["NG"].as<std::string>();
                                 if (compare(NGStandard, objValue)) {
-                                    //keep = true;
+                                    keep = true;
                                     NGStateMent << "The " << item["obj"].as<std::string>() << " of " << "the " << num << "th " << defectName << " " << NGStandard << ".";
                                     NGStateMent << "The " << item["obj"].as<std::string>() << " value is:" << objValue << std::endl;
                                     it->objFocus = objFocus;
                                     it->objValue = objValue;
                                     // TODO: ¿¼ÂÇ·ÅÉÏbreak
+                                    break;
                                 }
                                 else {
-                                    keep = false;
-                                    //continue;
-                                    break;
+                                    //keep = false;
+                                    //break;
+                                    continue;
                                 }
                             }
                         }

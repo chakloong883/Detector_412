@@ -33,6 +33,7 @@ GlogManager::GlogManager(const std::string& configPath) {
     std::string foldername = configPath.substr(position + 1, configPath.length() - position - 1);
     std::string loggerPath = "D://tmp//" + foldername + ".txt";
     auto file_sink = std::make_shared<spdlog::sinks::daily_file_sink_mt>(loggerPath, 2, 00);
+    file_sink->set_level(spdlog::level::warn);
 
     auto console_sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
     spdlog::logger* logger = new spdlog::logger("multi_sink", { console_sink, file_sink });
